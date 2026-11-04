@@ -2,7 +2,8 @@ const { randomUUID } = require('crypto');
 require('dotenv').config({ quiet: true });
 
 const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+// llama-3.3-70b-versatile is listed in Groq's docs but returned model_not_found for our account.
+const DEFAULT_MODEL = 'openai/gpt-oss-20b';
 const IA_TIMEOUT_MS = 8000;
 
 class IaError extends Error {}
@@ -28,6 +29,9 @@ async function llamarGroq({ system, user, maxTokens, temperature, json }) {
       max_tokens: maxTokens,
     };
     if (json) body.response_format = { type: 'json_object' };
+    // gpt-oss models spend max_tokens on hidden reasoning first; keep it minimal
+    // so the short answers we need are not cut off.
+    if (body.model.includes('gpt-oss')) body.reasoning_effort = 'low';
 
     const res = await fetch(GROQ_URL, {
       method: 'POST',

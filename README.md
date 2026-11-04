@@ -23,7 +23,7 @@ Variables de entorno opcionales: `PORT` (3000 por defecto), `DB_PATH` (`lecturaa
 | Variable | Descripción |
 | --- | --- |
 | `GROQ_API_KEY` | Tu clave de Groq. Nunca se escribe en el código ni en los logs, y `.env` está en `.gitignore`. Si está vacía se usa el respaldo. |
-| `GROQ_MODEL` | Modelo a usar. Por defecto `llama-3.3-70b-versatile`. |
+| `GROQ_MODEL` | Modelo a usar. Por defecto `openai/gpt-oss-20b`. Si tu cuenta tiene acceso, también puedes usar `llama-3.3-70b-versatile` (a nosotros nos devolvió `model_not_found`). Consulta los disponibles con `GET https://api.groq.com/openai/v1/models`. |
 
 3. Reinicia el servidor. Para probar la integración: `npm run probar-ia` (con `-- --clave-invalida` comprueba que cae al respaldo).
 
