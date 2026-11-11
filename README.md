@@ -15,7 +15,7 @@ Variables de entorno opcionales: `PORT` (3000 por defecto), `DB_PATH` (`lecturaa
 
 ## IA (Groq)
 
-`src/ia.js` usa la API de Groq (compatible con OpenAI). Si algo falla (sin clave, timeout de 8 s, red, 429, 5xx, JSON inválido o preguntas que no cumplen el formato) responde con el respaldo local, con `origen: 'respaldo'`, y deja en consola un aviso corto sin datos sensibles. Cada acción hace una sola llamada.
+`src/ia.js` usa la API de Groq (compatible con OpenAI). Si algo falla (sin clave, timeout de 8 s, red, 429, 5xx, JSON inválido o preguntas que no cumplen el formato) responde con el respaldo local, con `origen: 'respaldo'`, y deja en consola un aviso corto sin datos sensibles. Cada acción tiene un único plazo total de 8 s (configurable con `IA_TIMEOUT_MS`). Las preguntas se piden en JSON y se validan (exactamente 3, con al menos una de inferencia y una de intención del autor); si el JSON viene mal formado se reintenta **una vez** y solo si quedan ≥2 s del plazo. Los timeouts y los errores HTTP no se reintentan. Al repetir ejercicios, el servidor pasa a la IA las preguntas anteriores de esa lectura para que no se repitan (el respaldo también las evita).
 
 1. Crea una cuenta y una clave en https://console.groq.com/keys (el plan gratuito basta).
 2. Copia `.env.example` a `.env` y completa:

@@ -247,10 +247,10 @@ function montarAsistente(panel, lectura, token) {
       return;
     }
     if (!vivo()) return;
-    pregunta(lote.preguntas, 0);
+    pregunta(lote.preguntas, 0, lote.origen === 'respaldo');
   }
 
-  function pregunta(preguntas, indice) {
+  function pregunta(preguntas, indice, respaldo = false) {
     const p = preguntas[indice];
     let intento = 1;
     let enviando = false;
@@ -261,7 +261,7 @@ function montarAsistente(panel, lectura, token) {
     const error = h('div', { 'aria-live': 'polite' });
     const enviar = h('button', { type: 'submit', class: 'boton' }, 'Enviar respuesta');
     const siguiente = h('button', { type: 'button', class: 'boton secundario' }, esUltima ? 'Terminar' : 'Siguiente pregunta');
-    siguiente.addEventListener('click', () => (esUltima ? terminar() : pregunta(preguntas, indice + 1)));
+    siguiente.addEventListener('click', () => (esUltima ? terminar() : pregunta(preguntas, indice + 1, respaldo)));
 
     const form = h(
       'form',
@@ -289,7 +289,11 @@ function montarAsistente(panel, lectura, token) {
       try {
         const r = await api.retroalimentar(p.id, texto, intento);
         if (!vivo()) return;
-        pista.replaceChildren(h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'), r.retroalimentacion);
+        pista.replaceChildren(
+          h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'),
+          r.retroalimentacion,
+          r.origen === 'respaldo' && h('small', { class: 'nota', style: 'display:block;margin-top:.5rem' }, 'La IA no respondió a tiempo, así que esta es una pista general.')
+        );
         intento += 1;
         enviar.textContent = 'Reenviar respuesta corregida';
       } catch (err) {
@@ -302,7 +306,12 @@ function montarAsistente(panel, lectura, token) {
       }
     });
 
-    pintar(cabeceraAsistente(indice, preguntas.length), h('p', { class: 'burbuja-ia' }, p.enunciado), form);
+    pintar(
+      cabeceraAsistente(indice, preguntas.length),
+      respaldo && h('p', { class: 'nota', style: 'margin:0' }, 'La ayuda inteligente tardó demasiado, así que usamos preguntas generales. Puedes seguir leyendo y practicando.'),
+      h('p', { class: 'burbuja-ia' }, p.enunciado),
+      form
+    );
     area.focus({ preventScroll: true });
   }
 

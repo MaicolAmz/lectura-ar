@@ -43,9 +43,15 @@ app.post('/api/lecturas/:id/preguntas', async (req, res) => {
   const lectura = db.prepare('SELECT * FROM lecturas WHERE id = ?').get(req.params.id);
   if (!lectura) return res.status(404).json({ error: 'Lectura no encontrada.' });
 
+  // Questions from earlier batches, so "repetir ejercicios" asks something new (HU-10).
+  const previas = db
+    .prepare('SELECT enunciado FROM preguntas WHERE lectura_id = ? ORDER BY id DESC LIMIT 9')
+    .all(lectura.id)
+    .map((r) => r.enunciado);
+
   let generado;
   try {
-    generado = await ia.generarPreguntas(lectura);
+    generado = await ia.generarPreguntas(lectura, { previas });
   } catch (err) {
     console.error('IA generarPreguntas falló:', err.message);
     return res.status(503).json({
