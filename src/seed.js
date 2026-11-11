@@ -12,7 +12,7 @@ const lecturas = [
       'Antes del amanecer, Cantuña notó que el trabajo estaba por acabar y, con astucia, sacó una piedra y la escondió. ' +
       'Cuando el diablo vio que faltaba una piedra, comprendió que el trato estaba roto: la obra no estaba completa. Furioso, desapareció entre las sombras. Así, el ingenio salvó a Cantuña.',
     glosario: { palabra: 'atrio', definicion: 'Espacio descubierto y generalmente amplio que hay delante de la entrada de una iglesia.' },
-    escena: { nombre: 'Atrio colonial de noche', modelo_url: '/modelos/atrio.glb', descripcion: 'Un atrio de piedra frente a una iglesia colonial, con una piedra suelta en el centro.', escala: 1.0 },
+    escena: { nombre: 'La piedra que falta', modelo_url: '/modelos/piedra.glb', descripcion: 'Un muro de piedra al que le falta un bloque; la piedra escondida está a un lado.', escala: 1.0 },
   },
   {
     curso: 9,
@@ -25,7 +25,7 @@ const lecturas = [
       'Según la leyenda, al ver que la derrota era inevitable, Guayas escondió los tesoros de su pueblo en un lugar que nadie reveló jamás, y prefirió la muerte antes que rendirse. ' +
       'Dicen que de la unión de ambos nombres, Guayas y Quilca, nació el nombre de Guayaquil. Desde entonces, el río recuerda a quienes defendieron su tierra.',
     glosario: { palabra: 'cacique', definicion: 'Jefe de una comunidad o pueblo indígena.' },
-    escena: { nombre: 'Orillas del río Guayas', modelo_url: '/modelos/rio.glb', descripcion: 'Un río ancho al amanecer, con una canoa en la orilla y vegetación tropical.', escala: 1.0 },
+    escena: { nombre: 'Un pez del río Guayas', modelo_url: '/modelos/pez.glb', descripcion: 'Un pez de río, símbolo del gran río que da nombre a Guayaquil.', escala: 1.0 },
   },
   {
     curso: 10,
@@ -38,7 +38,7 @@ const lecturas = [
       'Una noche, la marea creció con fuerza y amenazó con llevarse las casas de palafito. Fueron las raíces del manglar las que frenaron el agua. ' +
       'Al amanecer, nadie volvió a reírse. Entendieron que el viejo no hablaba con la madera, sino con la memoria de un territorio que merecía ser cuidado.',
     glosario: { palabra: 'manglar', definicion: 'Ecosistema costero formado por mangles, árboles que crecen en agua salada y protegen la costa.' },
-    escena: { nombre: 'Manglar al atardecer', modelo_url: '/modelos/manglar.glb', descripcion: 'Un manglar con raíces entrelazadas sobre el agua y una casa de palafito al fondo.', escala: 1.1 },
+    escena: { nombre: 'El manglar', modelo_url: '/modelos/manglar.glb', descripcion: 'Un árbol de manglar con raíces arqueadas sobre el agua.', escala: 1.0 },
   },
 ];
 

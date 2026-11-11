@@ -1,0 +1,25 @@
+# Créditos y licencias de los modelos 3D (HU-07)
+
+Todos los modelos están en `public/modelos/` (`.glb`, cada uno < 5 MB) con un póster `.svg` del mismo nombre que se muestra mientras carga.
+
+| Archivo | Lectura | Tipo | Tamaño | Fuente y licencia |
+| --- | --- | --- | --- | --- |
+| `zorro.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). Sin modificar. Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
+| `piedra.glb` | Cantuña y el atrio de San Francisco | Simbólico | 7 KB | Creado para este proyecto con `scripts/generar-modelos.js`. Sin material de terceros. |
+| `volcan.glb` | Taita Imbabura y Mama Cotacachi | Simbólico | 15 KB | Ídem. Dos volcanes, el mayor con cima nevada. |
+| `pez.glb` | Guayas y Quilca | Simbólico | 21 KB | Ídem. Pez genérico, símbolo del río. |
+| `arbol.glb` | La Tunda | Simbólico | 30 KB | Ídem. Árbol de selva genérico. |
+| `ave.glb` | El cóndor y el colibrí | Simbólico | 23 KB | Ídem. Ave estilizada, no es un cóndor ni un colibrí anatómicamente. |
+| `manglar.glb` | Don Goyo, el viejo del manglar | Simbólico | 29 KB | Ídem. Raíces arqueadas sobre el agua. |
+| `farol.glb` | La Dama Tapada | Simbólico | 9 KB | Ídem. Farol de calle genérico. |
+| `canoa.glb` | Cumandá | Simbólico | 8 KB | Ídem. Canoa con remo. |
+
+## Atribución requerida (CC BY 4.0) — Fox
+
+> "Fox" — modelo de PixelMannen (CC0), rigging y animación de tomkranis (CC BY 4.0), conversión a glTF de @AsoboStudio y @scurest (CC BY 4.0). Fuente: KhronosGroup/glTF-Sample-Assets. Licencia: https://creativecommons.org/licenses/by/4.0/
+
+## Por qué casi todos son simbólicos
+
+Se buscaron modelos CC0 adecuados en el repositorio de Khronos. Solo *Fox* encajaba y pesaba poco. *Lantern* (CC0, 9,3 MB) y *Barramundi Fish* (CC0, 12 MB) se **descartaron por superar el límite de 5 MB**, por sus texturas de 4096 px; reducirlas requería una herramienta externa que no se ejecutó. Para esas lecturas (y para las que no tienen un modelo libre equivalente, como un volcán ecuatoriano o un manglar) se usó un **modelo genérico simbólico**, de baja complejidad y declarado como tal. No representan fielmente el objeto de la lectura; son una ayuda visual.
+
+Para regenerarlos: `node scripts/generar-modelos.js`.

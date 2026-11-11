@@ -35,11 +35,30 @@ HTML/CSS/JS simples (módulos ES, sin build) en `public/`, servidos por Express.
 | --- | --- |
 | `#/` | Inicio: botones 8.º, 9.º y 10.º, y "Retomar" si hay lectura abierta |
 | `#/curso/8` | Biblioteca del curso con insignias y barra de avance |
-| `#/lectura/3` | Lectura con glosario interactivo (y "Ver en AR", pendiente) |
+| `#/lectura/3` | Lectura con glosario interactivo y botón "Ver en AR" |
 | `#/practica/3` | Preguntas una a una con retroalimentación |
 | `#/progreso` | Resumen de avance por curso |
 
 El progreso (lecturas completadas y última lectura) se guarda solo en `localStorage`; si no está disponible, la app funciona con memoria temporal.
+
+## Realidad aumentada (HU-07)
+
+Cada lectura tiene un botón **Ver en AR**. Al pulsarlo se carga `<model-viewer>` de Google (versión fija `4.0.0`, desde jsDelivr) y se muestra el modelo `.glb` de la lectura con `ar-modes="webxr scene-viewer quick-look"`. El módulo se descarga solo en ese momento, así que si falla (sin internet) la lectura sigue disponible. En iOS, Quick Look genera el USDZ al vuelo; no hace falta `ios-src`. Si el dispositivo no admite AR se avisa y el modelo se puede girar en 3D. Modelos y licencias: `docs/creditos_modelos.md`.
+
+### Probar la AR desde el celular
+
+La AR en el celular exige **HTTPS** (o `localhost`), así que `http://IP-del-PC:3000` no sirve. No hay despliegue: usa un túnel temporal hacia el servidor local.
+
+```powershell
+npm start                                   # terminal 1: http://localhost:3000
+cloudflared tunnel --url http://localhost:3000   # terminal 2 (o: ngrok http 3000)
+```
+
+El túnel imprime una URL `https://…` (por ejemplo `https://algo.trycloudflare.com`). Ábrela en el celular, entra a una lectura y pulsa **Ver en AR** → **Ver en mi espacio**.
+
+- **Android:** Chrome y un dispositivo compatible con ARCore (Google Play Services para RA instalado).
+- **iPhone/iPad:** Safari (Quick Look).
+- Cierra el túnel (Ctrl+C) al terminar: la URL pública da acceso a tu servidor local.
 
 ## Endpoints
 

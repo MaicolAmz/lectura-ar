@@ -194,6 +194,93 @@ function textoConGlosario(texto, glosario, alTocar) {
   return frag;
 }
 
+/* ---------- AR (HU-07) ---------- */
+// <model-viewer> is loaded only when the student taps "Ver en AR", so a CDN failure
+// can never affect the reading itself. Version pinned on purpose.
+const MODEL_VIEWER_URL = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js';
+let cargaModelViewer = null;
+
+function cargarModelViewer() {
+  if (!cargaModelViewer) {
+    cargaModelViewer = import(MODEL_VIEWER_URL)
+      .then(() => customElements.whenDefined('model-viewer'))
+      .catch((err) => {
+        cargaModelViewer = null; // allow a retry
+        throw err;
+      });
+  }
+  return cargaModelViewer;
+}
+
+// One viewer per scene. Posters share the model's name (.glb -> .svg).
+function escenaAR(escena) {
+  const estado = h('p', { class: 'nota ar-estado', role: 'status', 'aria-live': 'polite' }, 'Cargando escena 3D…');
+  const viewer = h(
+    'model-viewer',
+    {
+      src: escena.modelo_url,
+      poster: escena.modelo_url.replace(/\.glb$/i, '.svg'),
+      alt: `${escena.nombre}: ${escena.descripcion}`,
+      ar: true,
+      'ar-modes': 'webxr scene-viewer quick-look',
+      'camera-controls': true,
+      autoplay: true, // only the fox is animated; harmless for static models
+      'touch-action': 'pan-y',
+      'shadow-intensity': '1',
+      loading: 'lazy',
+      reveal: 'auto',
+      scale: `${escena.escala} ${escena.escala} ${escena.escala}`,
+    },
+    h('button', { slot: 'ar-button', type: 'button', class: 'boton ar-boton' }, 'Ver en mi espacio')
+  );
+
+  // canActivateAR is only reliable once the model is loaded.
+  viewer.addEventListener('load', () => {
+    estado.textContent = viewer.canActivateAR
+      ? 'Toca «Ver en mi espacio» para ponerlo frente a ti con la cámara. También puedes girarlo con el dedo.'
+      : 'Este dispositivo o navegador no admite realidad aumentada, pero puedes girar y acercar el modelo aquí. La lectura sigue disponible.';
+  });
+  viewer.addEventListener('error', () => {
+    estado.textContent = 'No pudimos cargar el modelo 3D. La lectura sigue disponible.';
+  });
+
+  return h('figure', { class: 'ar-escena' }, viewer, h('figcaption', {}, h('strong', {}, escena.nombre), ' · ', escena.descripcion), estado);
+}
+
+// Returns { boton, panel }; the panel is filled the first time the button is pressed.
+function montarAR(escenas) {
+  const panel = h('section', { class: 'ar-panel', 'aria-label': 'Escena en realidad aumentada', hidden: true });
+  const boton = h('button', { type: 'button', class: 'boton secundario', 'aria-expanded': 'false' }, 'Ver en AR');
+  let cargado = false;
+
+  async function abrir() {
+    panel.replaceChildren(cargando('Preparando la escena 3D…'));
+    try {
+      await cargarModelViewer();
+      panel.replaceChildren(...escenas.map(escenaAR));
+      cargado = true;
+    } catch {
+      panel.replaceChildren(
+        h(
+          'div',
+          { class: 'aviso', role: 'alert' },
+          h('p', {}, 'No pudimos cargar el módulo de realidad aumentada (¿sin internet?). La lectura sigue disponible.'),
+          h('button', { type: 'button', class: 'boton', onclick: abrir }, 'Reintentar')
+        )
+      );
+    }
+  }
+
+  boton.addEventListener('click', () => {
+    const mostrar = panel.hidden;
+    panel.hidden = !mostrar;
+    boton.setAttribute('aria-expanded', String(mostrar));
+    boton.textContent = mostrar ? 'Ocultar AR' : 'Ver en AR';
+    if (mostrar && !cargado) abrir();
+  });
+  return { boton, panel };
+}
+
 function cabeceraAsistente(indice, total) {
   return [
     h(
@@ -358,6 +445,7 @@ async function vistaLectura(id, token, autoIniciar = false) {
     const panel = h('aside', { class: 'tarjeta asistente', 'aria-label': 'Asistente de lectura' });
     const asistente = montarAsistente(panel, l, token);
 
+    const ar = l.escenas_ar.length ? montarAR(l.escenas_ar) : null;
     const parrafos = String(l.texto).split(/\n+/).filter(Boolean);
     mostrar(
       l.titulo,
@@ -379,11 +467,8 @@ async function vistaLectura(id, token, autoIniciar = false) {
           l.glosario.length > 0 && h('p', { class: 'nota', style: 'margin:0' }, 'Toca las palabras resaltadas para ver su significado.'),
           h('div', { class: 'cuerpo' }, parrafos.map((p) => h('p', {}, textoConGlosario(p, l.glosario, alTocar)))),
           caja,
-          h(
-            'div',
-            { class: 'acciones', style: 'margin:0' },
-            h('button', { type: 'button', class: 'boton secundario', disabled: true, 'aria-disabled': 'true' }, 'Ver en AR · Próximamente')
-          )
+          ar && h('div', { class: 'acciones', style: 'margin:0' }, ar.boton),
+          ar && ar.panel
         ),
         panel
       )
