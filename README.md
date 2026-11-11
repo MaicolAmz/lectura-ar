@@ -7,9 +7,11 @@ Stack: Node.js, Express, cors y better-sqlite3. Sin registro ni login: el progre
 
 ```powershell
 npm install
-npm run seed    # crea/recrea la base con 3 lecturas de prueba
+npm run seed    # recrea la base con 9 lecturas (3 por curso); idempotente
 npm start       # http://localhost:3000
 ```
+
+El seed borra todas las lecturas y las vuelve a insertar en una transacción (también se pierden las preguntas generadas). Antes de cargar valida que cada glosario tenga 3-5 palabras que aparezcan literalmente en el texto y que exista el modelo `.glb`; si algo falla, no toca la base. Los textos son leyendas de tradición oral y fábulas de dominio público, o textos originales; la columna `fuente` registra el origen de cada uno.
 
 Variables de entorno opcionales: `PORT` (3000 por defecto), `DB_PATH` (`lecturaar.db` por defecto).
 

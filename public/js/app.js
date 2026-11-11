@@ -277,6 +277,9 @@ function montarAR(escenas) {
     boton.setAttribute('aria-expanded', String(mostrar));
     boton.textContent = mostrar ? 'Ocultar AR' : 'Ver en AR';
     if (mostrar && !cargado) abrir();
+    // loading="lazy" only fetches the model once the viewer is on screen; on a phone the
+    // panel opens below the fold, so bring it into view.
+    if (mostrar) panel.scrollIntoView({ block: 'nearest' });
   });
   return { boton, panel };
 }
@@ -467,6 +470,7 @@ async function vistaLectura(id, token, autoIniciar = false) {
           l.glosario.length > 0 && h('p', { class: 'nota', style: 'margin:0' }, 'Toca las palabras resaltadas para ver su significado.'),
           h('div', { class: 'cuerpo' }, parrafos.map((p) => h('p', {}, textoConGlosario(p, l.glosario, alTocar)))),
           caja,
+          l.fuente && h('p', { class: 'nota', style: 'margin:0' }, `Fuente: ${l.fuente}`),
           ar && h('div', { class: 'acciones', style: 'margin:0' }, ar.boton),
           ar && ar.panel
         ),

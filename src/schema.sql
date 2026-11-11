@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS lecturas (
   curso        INTEGER NOT NULL CHECK (curso IN (8, 9, 10)),
   titulo       TEXT NOT NULL,
   autor        TEXT NOT NULL,
+  fuente       TEXT NOT NULL DEFAULT '',
   duracion_min INTEGER NOT NULL,
   texto        TEXT NOT NULL
 );
