@@ -166,7 +166,7 @@ async function vistaCurso(curso, token) {
   }
 }
 
-/* ---------- Lectura (HU-04, HU-11) ---------- */
+/* ---------- Lectura + asistente (HU-04, HU-05, HU-06, HU-10, HU-11) ---------- */
 const escapar = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Splits text into text nodes and glossary buttons, so no HTML string is built.
@@ -194,64 +194,6 @@ function textoConGlosario(texto, glosario, alTocar) {
   return frag;
 }
 
-async function vistaLectura(id, token) {
-  mostrar('Lectura', 'biblioteca', cargando('Cargando lectura…'));
-  try {
-    const l = await api.lectura(id);
-    if (token !== vistaActual) return;
-    guardarUltima({ id: l.id, titulo: l.titulo, curso: l.curso });
-    marcarNav('biblioteca');
-
-    const caja = h('div', { class: 'definicion', role: 'status', 'aria-live': 'polite' });
-    let abierto = null;
-    const alTocar = (g, boton) => {
-      if (abierto) abierto.setAttribute('aria-expanded', 'false');
-      if (abierto === boton) {
-        abierto = null;
-        caja.replaceChildren();
-        return;
-      }
-      abierto = boton;
-      boton.setAttribute('aria-expanded', 'true');
-      caja.replaceChildren(h('strong', {}, g.palabra), ': ', g.definicion);
-    };
-
-    const parrafos = String(l.texto).split(/\n+/).filter(Boolean);
-    mostrar(
-      l.titulo,
-      'biblioteca',
-      h(
-        'div',
-        { style: 'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem' },
-        h('p', { class: 'migas' }, enlace(`#/curso/${l.curso}`, '← Volver a la biblioteca', '')),
-        h('p', { class: 'paso' }, 'Paso 3 de 3 · Lee y responde')
-      ),
-      h(
-        'article',
-        { class: 'tarjeta lectura-texto', style: 'display:flex;flex-direction:column;gap:1rem' },
-        h('h1', {}, l.titulo),
-        h('p', { class: 'nota', style: 'margin:0' }, `${l.autor} · ${nombreCurso(l.curso)} · ${l.duracion_min} min`),
-        l.glosario.length > 0 && h('p', { class: 'nota', style: 'margin:0' }, 'Toca las palabras resaltadas para ver su significado.'),
-        h('div', { class: 'cuerpo' }, parrafos.map((p) => h('p', {}, textoConGlosario(p, l.glosario, alTocar)))),
-        caja,
-        h(
-          'div',
-          { class: 'acciones' },
-          enlace(`#/practica/${l.id}`, 'Practicar'),
-          h('button', { type: 'button', class: 'boton secundario', disabled: true, 'aria-disabled': 'true' }, 'Ver en AR · Próximamente')
-        )
-      )
-    );
-  } catch (err) {
-    if (token !== vistaActual) return;
-    mostrar('Lectura', 'biblioteca', h('h1', {}, 'Lectura'), errorApi(err, {
-      reintentar: () => vistaLectura(id, token),
-      volver: { href: '#/', texto: 'Volver al inicio' },
-    }));
-  }
-}
-
-/* ---------- Práctica (HU-05, HU-06, HU-10) ---------- */
 function cabeceraAsistente(indice, total) {
   return [
     h(
@@ -263,35 +205,52 @@ function cabeceraAsistente(indice, total) {
         h('span', { class: 'avatar', 'aria-hidden': 'true' }),
         h('div', {}, h('strong', {}, 'Asistente de lectura'), h('small', { class: 'nota' }, 'Hecho con IA'))
       ),
-      h('strong', { style: 'color:var(--primario-texto)' }, `Pregunta ${indice + 1} de ${total}`)
+      total > 0 && h('strong', { style: 'color:var(--primario-texto)' }, `Pregunta ${indice + 1} de ${total}`)
     ),
-    h(
-      'div',
-      { class: 'segmentos', role: 'img', 'aria-label': `Pregunta ${indice + 1} de ${total}` },
-      Array.from({ length: total }, (_, i) => h('span', { class: i <= indice ? 'on' : '' }))
-    ),
+    total > 0 &&
+      h(
+        'div',
+        { class: 'segmentos', role: 'img', 'aria-label': `Pregunta ${indice + 1} de ${total}` },
+        Array.from({ length: total }, (_, i) => h('span', { class: i <= indice ? 'on' : '' }))
+      ),
   ];
 }
 
-async function vistaPractica(id, token) {
-  mostrar('Práctica', 'biblioteca', h('h1', {}, 'Práctica'), cargando('Preparando preguntas…'));
-  const volverLectura = { href: `#/lectura/${id}`, texto: 'Volver a la lectura' };
-  let lote;
-  try {
-    lote = await api.generarPreguntas(id);
-  } catch (err) {
-    if (token !== vistaActual) return;
-    mostrar('Práctica', 'biblioteca', h('h1', {}, 'Práctica'), errorApi(err, {
-      reintentar: () => vistaPractica(id, token),
-      volver: volverLectura,
-    }));
-    return;
-  }
-  if (token !== vistaActual) return;
-  const preguntas = lote.preguntas;
-  let indice = 0;
+// The assistant lives in the right column; the reading on the left is never replaced,
+// so an AI failure cannot block it.
+function montarAsistente(panel, lectura, token) {
+  const id = lectura.id;
+  const vivo = () => token === vistaActual;
+  const pintar = (...nodos) => panel.replaceChildren(...nodos.flat().filter((n) => n && n.nodeType));
 
-  function pintarPregunta() {
+  function intro() {
+    pintar(
+      cabeceraAsistente(0, 0),
+      h('p', { class: 'burbuja-ia' }, 'Lee el texto con calma. Cuando estés listo, te haré preguntas para pensar más allá de lo que dice.'),
+      h('div', { class: 'acciones', style: 'margin:0' }, h('button', { type: 'button', class: 'boton', onclick: iniciar }, 'Empezar práctica')),
+      h('p', { class: 'nota', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
+    );
+  }
+
+  async function iniciar() {
+    pintar(cabeceraAsistente(0, 0), cargando('Preparando preguntas…'));
+    let lote;
+    try {
+      lote = await api.generarPreguntas(id);
+    } catch (err) {
+      if (!vivo()) return;
+      pintar(
+        cabeceraAsistente(0, 0),
+        errorApi(err, { reintentar: iniciar }),
+        h('p', { class: 'nota', style: 'margin:0' }, 'Puedes seguir leyendo mientras tanto.')
+      );
+      return;
+    }
+    if (!vivo()) return;
+    pregunta(lote.preguntas, 0);
+  }
+
+  function pregunta(preguntas, indice) {
     const p = preguntas[indice];
     let intento = 1;
     let enviando = false;
@@ -302,12 +261,7 @@ async function vistaPractica(id, token) {
     const error = h('div', { 'aria-live': 'polite' });
     const enviar = h('button', { type: 'submit', class: 'boton' }, 'Enviar respuesta');
     const siguiente = h('button', { type: 'button', class: 'boton secundario' }, esUltima ? 'Terminar' : 'Siguiente pregunta');
-
-    siguiente.addEventListener('click', () => {
-      if (esUltima) return terminar();
-      indice += 1;
-      pintarPregunta();
-    });
+    siguiente.addEventListener('click', () => (esUltima ? terminar() : pregunta(preguntas, indice + 1)));
 
     const form = h(
       'form',
@@ -334,12 +288,12 @@ async function vistaPractica(id, token) {
       pista.replaceChildren(cargando('Pensando una pista…'));
       try {
         const r = await api.retroalimentar(p.id, texto, intento);
-        if (token !== vistaActual) return;
+        if (!vivo()) return;
         pista.replaceChildren(h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'), r.retroalimentacion);
         intento += 1;
         enviar.textContent = 'Reenviar respuesta corregida';
       } catch (err) {
-        if (token !== vistaActual) return;
+        if (!vivo()) return;
         pista.replaceChildren();
         error.replaceChildren(errorApi(err, { reintentar: () => form.requestSubmit() }));
       } finally {
@@ -348,39 +302,92 @@ async function vistaPractica(id, token) {
       }
     });
 
-    mostrar(
-      'Práctica',
-      'biblioteca',
-      h('p', { class: 'migas' }, enlace(volverLectura.href, '← Volver a la lectura', '')),
-      h('section', { class: 'tarjeta asistente', 'aria-label': 'Asistente de lectura' }, cabeceraAsistente(indice, preguntas.length), h('h1', { class: 'burbuja-ia', style: 'font-weight:400;font-size:1.1rem' }, p.enunciado), form)
-    );
-    area.focus();
+    pintar(cabeceraAsistente(indice, preguntas.length), h('p', { class: 'burbuja-ia' }, p.enunciado), form);
+    area.focus({ preventScroll: true });
   }
 
   function terminar() {
     marcarCompletada(id);
-    const ult = obtenerUltima();
-    const hrefBiblioteca = ult && String(ult.id) === String(id) ? `#/curso/${ult.curso}` : '#/';
-    mostrar(
-      'Práctica terminada',
-      'biblioteca',
+    pintar(
+      h('span', { class: 'insignia', style: 'align-self:flex-start' }, '✓ Completada'),
+      h('h2', { style: 'margin:0' }, '¡Muy bien! Terminaste los ejercicios'),
+      h('p', { style: 'margin:0' }, 'Esta lectura quedó marcada como completada.'),
       h(
-        'section',
-        { class: 'tarjeta asistente' },
-        h('span', { class: 'insignia', style: 'align-self:flex-start' }, '✓ Completada'),
-        h('h1', {}, '¡Muy bien! Terminaste los ejercicios'),
-        h('p', {}, 'Esta lectura quedó marcada como completada.'),
-        h(
-          'div',
-          { class: 'acciones' },
-          h('button', { type: 'button', class: 'boton', onclick: () => vistaPractica(id, token) }, 'Repetir ejercicios'),
-          enlace(hrefBiblioteca, 'Volver a la biblioteca', 'boton secundario')
-        )
+        'div',
+        { class: 'acciones', style: 'margin:0' },
+        h('button', { type: 'button', class: 'boton', onclick: iniciar }, 'Repetir ejercicios'),
+        enlace(`#/curso/${lectura.curso}`, 'Volver a la biblioteca', 'boton secundario')
       )
     );
   }
 
-  pintarPregunta();
+  return { intro, iniciar };
+}
+
+async function vistaLectura(id, token, autoIniciar = false) {
+  mostrar('Lectura', 'biblioteca', cargando('Cargando lectura…'));
+  try {
+    const l = await api.lectura(id);
+    if (token !== vistaActual) return;
+    guardarUltima({ id: l.id, titulo: l.titulo, curso: l.curso });
+    marcarNav('biblioteca');
+
+    const caja = h('div', { class: 'definicion', role: 'status', 'aria-live': 'polite' });
+    let abierto = null;
+    const alTocar = (g, boton) => {
+      if (abierto) abierto.setAttribute('aria-expanded', 'false');
+      if (abierto === boton) {
+        abierto = null;
+        caja.replaceChildren();
+        return;
+      }
+      abierto = boton;
+      boton.setAttribute('aria-expanded', 'true');
+      caja.replaceChildren(h('strong', {}, g.palabra), ': ', g.definicion);
+    };
+
+    const panel = h('aside', { class: 'tarjeta asistente', 'aria-label': 'Asistente de lectura' });
+    const asistente = montarAsistente(panel, l, token);
+
+    const parrafos = String(l.texto).split(/\n+/).filter(Boolean);
+    mostrar(
+      l.titulo,
+      'biblioteca',
+      h(
+        'div',
+        { style: 'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem' },
+        h('p', { class: 'migas' }, enlace(`#/curso/${l.curso}`, '← Volver a la biblioteca', '')),
+        h('p', { class: 'paso' }, 'Paso 3 de 3 · Lee y responde')
+      ),
+      h(
+        'div',
+        { class: 'lectura-layout' },
+        h(
+          'article',
+          { class: 'tarjeta lectura-texto', style: 'display:flex;flex-direction:column;gap:1rem' },
+          h('h1', {}, l.titulo),
+          h('p', { class: 'nota', style: 'margin:0' }, `${l.autor} · ${nombreCurso(l.curso)} · ${l.duracion_min} min`),
+          l.glosario.length > 0 && h('p', { class: 'nota', style: 'margin:0' }, 'Toca las palabras resaltadas para ver su significado.'),
+          h('div', { class: 'cuerpo' }, parrafos.map((p) => h('p', {}, textoConGlosario(p, l.glosario, alTocar)))),
+          caja,
+          h(
+            'div',
+            { class: 'acciones', style: 'margin:0' },
+            h('button', { type: 'button', class: 'boton secundario', disabled: true, 'aria-disabled': 'true' }, 'Ver en AR · Próximamente')
+          )
+        ),
+        panel
+      )
+    );
+    if (autoIniciar) asistente.iniciar();
+    else asistente.intro();
+  } catch (err) {
+    if (token !== vistaActual) return;
+    mostrar('Lectura', 'biblioteca', h('h1', {}, 'Lectura'), errorApi(err, {
+      reintentar: () => vistaLectura(id, token, autoIniciar),
+      volver: { href: '#/', texto: 'Volver al inicio' },
+    }));
+  }
 }
 
 /* ---------- Progreso (HU-08) ---------- */
@@ -465,7 +472,7 @@ function enrutar() {
   if (!ruta) return vistaInicio();
   if (ruta === 'curso' && idValido) return vistaCurso(num, token);
   if (ruta === 'lectura' && idValido) return vistaLectura(num, token);
-  if (ruta === 'practica' && idValido) return vistaPractica(num, token);
+  if (ruta === 'practica' && idValido) return vistaLectura(num, token, true);
   if (ruta === 'progreso') return vistaProgreso(token);
   return vistaNoEncontrada();
 }

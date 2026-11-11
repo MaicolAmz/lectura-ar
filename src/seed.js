@@ -3,41 +3,42 @@ const db = require('./db');
 const lecturas = [
   {
     curso: 8,
-    titulo: 'El farol del viejo muelle',
-    autor: 'Texto original de LecturaAR',
+    titulo: 'Cantuña y el atrio de San Francisco',
+    autor: 'Adaptación de LecturaAR de una leyenda tradicional de Quito',
     duracion_min: 4,
     texto:
-      'Cada noche, Don Anselmo subía los ciento doce escalones del faro para encender el farol del viejo muelle. ' +
-      'Nadie le había pedido que lo hiciera desde que los barcos grandes dejaron de llegar. ' +
-      'Una tarde de niebla, una lancha diminuta se acercó tanteando la costa. Su luz fue lo único que la guio hasta la orilla. ' +
-      'El pescador bajó, agradeció en silencio y dejó un pez sobre la baranda. Don Anselmo sonrió y, sin decir palabra, volvió a subir.',
-    glosario: { palabra: 'tanteando', definicion: 'Explorando con cuidado y poco a poco, sin tener seguridad de lo que se encuentra.' },
-    escena: { nombre: 'Faro en la niebla', modelo_url: '/modelos/faro.glb', descripcion: 'Un faro junto a un muelle de madera rodeado de niebla.', escala: 1.0 },
+      'En la Quito colonial, el maestro albañil Cantuña recibió un encargo imposible: terminar el atrio de la iglesia de San Francisco en una sola noche, o perdería su libertad. ' +
+      'Desesperado, aceptó la ayuda del diablo a cambio de su alma. Al caer la noche, cientos de obreros invisibles empezaron a levantar muros, columnas y escalinatas. ' +
+      'Antes del amanecer, Cantuña notó que el trabajo estaba por acabar y, con astucia, sacó una piedra y la escondió. ' +
+      'Cuando el diablo vio que faltaba una piedra, comprendió que el trato estaba roto: la obra no estaba completa. Furioso, desapareció entre las sombras. Así, el ingenio salvó a Cantuña.',
+    glosario: { palabra: 'atrio', definicion: 'Espacio descubierto y generalmente amplio que hay delante de la entrada de una iglesia.' },
+    escena: { nombre: 'Atrio colonial de noche', modelo_url: '/modelos/atrio.glb', descripcion: 'Un atrio de piedra frente a una iglesia colonial, con una piedra suelta en el centro.', escala: 1.0 },
   },
   {
     curso: 9,
-    titulo: 'La carta que nunca llegó',
-    autor: 'Texto original de LecturaAR',
+    titulo: 'Guayas y Quilca',
+    autor: 'Adaptación de LecturaAR de una leyenda tradicional de Guayaquil',
     duracion_min: 5,
     texto:
-      'Marta esperó el cartero cada mañana durante todo el invierno. Desde la ventana contaba los pasos de los vecinos y reconocía el sonido de cada bicicleta. ' +
-      'Cuando por fin llegó la primavera, guardó el papel y la pluma que había preparado para responder. ' +
-      'Esa tarde abrió la caja de madera y leyó, una vez más, las cartas viejas de su hermano. ' +
-      'Entendió que la añoranza no siempre se responde con una carta: a veces se escribe para uno mismo.',
-    glosario: { palabra: 'añoranza', definicion: 'Sentimiento de tristeza por la ausencia de alguien o por algo que ya pasó.' },
-    escena: { nombre: 'Ventana de invierno', modelo_url: '/modelos/ventana.glb', descripcion: 'Una ventana con vista a una calle nevada y un buzón en la esquina.', escala: 0.8 },
+      'Hace siglos, el cacique Guayas gobernaba las tierras junto al gran río, y a su lado estaba Quilca, su esposa, a quien todos respetaban por su sabiduría. ' +
+      'Cuando los conquistadores españoles llegaron buscando oro, Guayas se negó a entregar su territorio y resistió durante mucho tiempo. ' +
+      'Según la leyenda, al ver que la derrota era inevitable, Guayas escondió los tesoros de su pueblo en un lugar que nadie reveló jamás, y prefirió la muerte antes que rendirse. ' +
+      'Dicen que de la unión de ambos nombres, Guayas y Quilca, nació el nombre de Guayaquil. Desde entonces, el río recuerda a quienes defendieron su tierra.',
+    glosario: { palabra: 'cacique', definicion: 'Jefe de una comunidad o pueblo indígena.' },
+    escena: { nombre: 'Orillas del río Guayas', modelo_url: '/modelos/rio.glb', descripcion: 'Un río ancho al amanecer, con una canoa en la orilla y vegetación tropical.', escala: 1.0 },
   },
   {
     curso: 10,
-    titulo: 'El espejo de las cuatro de la tarde',
-    autor: 'Texto original de LecturaAR',
+    titulo: 'Don Goyo, el viejo del manglar',
+    autor: 'Adaptación de LecturaAR inspirada en la novela Don Goyo, de Demetrio Aguilera Malta',
     duracion_min: 6,
     texto:
-      'En la casa de mis abuelos había un espejo que, a las cuatro de la tarde, devolvía una imagen distinta a la esperada. ' +
-      'No mostraba mi rostro, sino el de quien yo habría sido si hubiera elegido otro camino. ' +
-      'Un día, el reflejo me guiñó un ojo y señaló la puerta. Dudé. Al regresar, el espejo solo mostraba mi cara cansada, y entendí que la pregunta nunca había estado en el cristal.',
-    glosario: { palabra: 'reflejo', definicion: 'Imagen que devuelve una superficie pulida, como un espejo o el agua.' },
-    escena: { nombre: 'Salón del espejo', modelo_url: '/modelos/espejo.glb', descripcion: 'Un salón antiguo con un espejo de marco dorado frente a la ventana.', escala: 1.2 },
+      'En una isla del golfo de Guayaquil vivía Don Goyo, un cholo tan viejo que nadie recordaba su edad. Pasaba los días entre los manglares, hablándoles como si fueran sus compañeros. ' +
+      'Los jóvenes se burlaban de él, pero él repetía que los árboles escuchan y que sus raíces sostienen la vida: los cangrejos, los peces y hasta la tierra firme. ' +
+      'Una noche, la marea creció con fuerza y amenazó con llevarse las casas de palafito. Fueron las raíces del manglar las que frenaron el agua. ' +
+      'Al amanecer, nadie volvió a reírse. Entendieron que el viejo no hablaba con la madera, sino con la memoria de un territorio que merecía ser cuidado.',
+    glosario: { palabra: 'manglar', definicion: 'Ecosistema costero formado por mangles, árboles que crecen en agua salada y protegen la costa.' },
+    escena: { nombre: 'Manglar al atardecer', modelo_url: '/modelos/manglar.glb', descripcion: 'Un manglar con raíces entrelazadas sobre el agua y una casa de palafito al fondo.', escala: 1.1 },
   },
 ];
 
