@@ -379,10 +379,13 @@ function montarAsistente(panel, lectura, token) {
       try {
         const r = await api.retroalimentar(p.id, texto, intento);
         if (!vivo()) return;
+        // replaceChildren would print a literal "false", so falsy entries are filtered out.
         pista.replaceChildren(
-          h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'),
-          r.retroalimentacion,
-          r.origen === 'respaldo' && h('small', { class: 'nota', style: 'display:block;margin-top:.5rem' }, 'La IA no respondió a tiempo, así que esta es una pista general.')
+          ...[
+            h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'),
+            r.retroalimentacion,
+            r.origen === 'respaldo' && h('small', { class: 'nota', style: 'display:block;margin-top:.5rem' }, 'La IA no respondió a tiempo, así que esta es una pista general.'),
+          ].filter(Boolean)
         );
         intento += 1;
         enviar.textContent = 'Reenviar respuesta corregida';

@@ -6,8 +6,8 @@ const GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const DEFAULT_MODEL = 'openai/gpt-oss-20b';
 // Total budget for one user action (retry included). Overridable so tests do not wait 8 s.
 const IA_TIMEOUT_MS = Number(process.env.IA_TIMEOUT_MS) || 8000;
-// A retry is only worth starting if this much of the budget is left.
-const MIN_REINTENTO_MS = 2000;
+// A retry is only worth starting if this much of the budget is left (overridable for tests).
+const MIN_REINTENTO_MS = Number(process.env.IA_MIN_REINTENTO_MS) || 2000;
 
 class IaError extends Error {}
 
@@ -90,14 +90,18 @@ Responde solo con un objeto JSON con este formato exacto, sin texto adicional:
 {"preguntas":[{"tipo":"inferencia|intencion_autor","enunciado":"...","pista_base":"..."}]}`;
 
 const TIPOS = ['inferencia', 'intencion_autor'];
-// A random angle per request so "repetir ejercicios" does not produce the same questions.
+// Each question gets its own random angle, so "repetir ejercicios" asks about different
+// things instead of rewording the previous questions (a single suggested angle was not enough).
 const ENFOQUES = [
-  'las acciones y decisiones del personaje',
+  'las acciones y decisiones de un personaje',
   'el final del texto',
   'el lenguaje y las imágenes que usa el autor',
   'el tema o mensaje central',
   'el ambiente o lugar donde ocurre la historia',
   'lo que los personajes sienten pero no dicen',
+  'la relación entre dos personajes o entre un personaje y su entorno',
+  'el título y lo que sugiere',
+  'un detalle del texto que parece menor pero tiene importancia',
 ];
 const texto = (v, min, max) => typeof v === 'string' && v.trim().length >= min && v.trim().length <= max;
 
@@ -116,11 +120,11 @@ function validarPreguntas(salida) {
   return limpias;
 }
 
-function pedirPreguntas(lectura, previas, enfoque, correccion) {
+function pedirPreguntas(lectura, previas, enfoques, correccion) {
   let user = `Título: ${lectura.titulo}\nAutor: ${lectura.autor}\nCurso: ${lectura.curso}.º de EGB\n\nTexto:\n${lectura.texto}\n\n`;
-  user += `Enfoque sugerido para esta tanda: ${enfoque}.`;
+  user += `Cada pregunta debe tratar un aspecto distinto:\n${enfoques.map((e, i) => `Pregunta ${i + 1}: sobre ${e}.`).join('\n')}`;
   if (previas.length) {
-    user += `\nNo repitas ni reformules estas preguntas que el estudiante ya vio:\n${previas.map((e) => `- ${e}`).join('\n')}`;
+    user += `\nEl estudiante ya vio estas preguntas. No las repitas ni las reformules, ni preguntes por la misma idea con otras palabras:\n${previas.map((e) => `- ${e}`).join('\n')}`;
   }
   if (correccion) user += `\n\n${correccion}`;
   return user;
@@ -131,14 +135,14 @@ function pedirPreguntas(lectura, previas, enfoque, correccion) {
 // Retry only when the model's output was malformed; timeouts and HTTP errors go straight to the fallback.
 async function generarPreguntas(lectura, { previas = [] } = {}) {
   const limite = Date.now() + IA_TIMEOUT_MS;
-  const enfoque = elegir(ENFOQUES);
+  const enfoques = mezclar(ENFOQUES).slice(0, 3);
   let correccion = '';
   try {
     for (let intento = 1; ; intento++) {
       try {
         const contenido = await llamarGroq({
           system: SISTEMA_PREGUNTAS,
-          user: pedirPreguntas(lectura, previas, enfoque, correccion),
+          user: pedirPreguntas(lectura, previas, enfoques, correccion),
           maxTokens: 900,
           temperature: 0.7,
           json: true,

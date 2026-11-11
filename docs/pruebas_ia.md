@@ -71,6 +71,7 @@ Ejemplo de preguntas generadas (Guayas y Quilca, lote 1 → lote 2 al repetir):
 | D5 | Respuestas **truncadas** ("¡Muy bien! Para reforzar tu respuesta, ¿pu") porque `max_tokens` se agotaba (el modelo gasta tokens en razonamiento oculto). | Se rechaza `finish_reason: length` (cae al respaldo / reintento) y `max_tokens` de la retroalimentación sube de 200 a 400. Verificado con una repetición real de Don Goyo: salidas completas. |
 | D6 | El respaldo mostraba en una pregunta el campo `autor` completo ("Adaptación de LecturaAR inspirada en la novela…"). | La plantilla usa "el autor". |
 | D7 | `probar-ia.js` anunciaba un modelo por defecto distinto al real. | Corregido. |
+| D8 | (Detectado después, en la prueba en el navegador.) Al repetir ejercicios la IA reformulaba las mismas ideas con otras palabras. | Cada pregunta recibe un enfoque distinto al azar y se le pasan las preguntas anteriores. Mejora la variedad pero no la garantiza en lecturas cortas (3 rondas seguidas sobre *El cóndor y el colibrí* volvieron varias veces a «el cóndor arrogante que cambia de actitud»). Los resultados de arriba («0 preguntas idénticas») se midieron con el prompt anterior; ver `docs/pruebas_funcionales.md`, D-F4. |
 
 ## Riesgos residuales
 

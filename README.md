@@ -43,6 +43,15 @@ HTML/CSS/JS simples (módulos ES, sin build) en `public/`, servidos por Express.
 
 El progreso (lecturas completadas y última lectura) se guarda solo en `localStorage`; si no está disponible, la app funciona con memoria temporal.
 
+## Pruebas
+
+```powershell
+npm test                  # API con node:test + supertest; Groq se simula, no gasta cuota ni usa la clave
+npm run probar-ia         # prueba manual contra Groq real (3 lecturas x 5 casos); usa --espera 50 para evitar el 429
+```
+
+Resultados y casos manuales en `docs/pruebas_funcionales.md` y `docs/pruebas_ia.md`.
+
 ## Realidad aumentada (HU-07)
 
 Cada lectura tiene un botón **Ver en AR**. Al pulsarlo se carga `<model-viewer>` de Google (versión fija `4.0.0`, desde jsDelivr) y se muestra el modelo `.glb` de la lectura con `ar-modes="webxr scene-viewer quick-look"`. El módulo se descarga solo en ese momento, así que si falla (sin internet) la lectura sigue disponible. En iOS, Quick Look genera el USDZ al vuelo; no hace falta `ios-src`. Si el dispositivo no admite AR se avisa y el modelo se puede girar en 3D. Modelos y licencias: `docs/creditos_modelos.md`.
