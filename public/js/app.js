@@ -384,7 +384,7 @@ function montarAsistente(panel, lectura, token) {
           ...[
             h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'),
             r.retroalimentacion,
-            r.origen === 'respaldo' && h('small', { class: 'nota', style: 'display:block;margin-top:.5rem' }, 'La IA no respondió a tiempo, así que esta es una pista general.'),
+            r.origen === 'respaldo' && h('small', { class: 'nota', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
           ].filter(Boolean)
         );
         intento += 1;
@@ -401,7 +401,7 @@ function montarAsistente(panel, lectura, token) {
 
     pintar(
       cabeceraAsistente(indice, preguntas.length),
-      respaldo && h('p', { class: 'nota', style: 'margin:0' }, 'La ayuda inteligente tardó demasiado, así que usamos preguntas generales. Puedes seguir leyendo y practicando.'),
+      respaldo && h('p', { class: 'nota', style: 'margin:0' }, 'La ayuda inteligente no está disponible ahora mismo, así que usamos preguntas generales. Puedes seguir leyendo y practicando.'),
       h('p', { class: 'burbuja-ia' }, p.enunciado),
       form
     );

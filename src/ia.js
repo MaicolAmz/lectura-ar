@@ -107,7 +107,12 @@ const texto = (v, min, max) => typeof v === 'string' && v.trim().length >= min &
 
 // Returns exactly 3 cleaned questions (extras are dropped), or null if the output
 // does not meet the contract. Both question types must be present.
-function validarPreguntas(salida) {
+// Case/punctuation-insensitive form, to compare questions.
+const normalizar = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+
+// `previas`: a question identical to one the student already saw invalidates the batch
+// (the model ignored the "do not repeat" instruction), which triggers the retry.
+function validarPreguntas(salida, previas = []) {
   const lista = salida && salida.preguntas;
   if (!Array.isArray(lista) || lista.length < 3) return null;
   const limpias = [];
@@ -117,6 +122,8 @@ function validarPreguntas(salida) {
     limpias.push({ tipo: p.tipo, enunciado: p.enunciado.trim(), pista_base: p.pista_base.trim() });
   }
   if (!TIPOS.every((t) => limpias.some((p) => p.tipo === t))) return null;
+  const vistas = new Set(previas.map(normalizar));
+  if (limpias.some((p) => vistas.has(normalizar(p.enunciado)))) return null;
   return limpias;
 }
 
@@ -154,7 +161,7 @@ async function generarPreguntas(lectura, { previas = [] } = {}) {
         } catch {
           throw new IaError('json inválido');
         }
-        const preguntas = validarPreguntas(salida);
+        const preguntas = validarPreguntas(salida, previas);
         if (!preguntas) throw new IaError('validación');
         return { lote: randomUUID(), origen: 'ia', preguntas };
       } catch (err) {

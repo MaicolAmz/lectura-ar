@@ -25,13 +25,18 @@ const groq = (content, finish = 'stop') =>
     headers: { 'content-type': 'application/json' },
   });
 
-const preguntasValidas = (n = 3) => ({
-  preguntas: Array.from({ length: n }, (_, i) => ({
-    tipo: i === 0 ? 'intencion_autor' : 'inferencia',
-    enunciado: `¿Qué se puede deducir de la escena número ${i + 1} del texto?`,
-    pista_base: `Relee el párrafo ${i + 1} y fíjate en los verbos.`,
-  })),
-});
+// Every call yields new wording: identical questions on the same reading are now rejected as repeats.
+let lotesCreados = 0;
+const preguntasValidas = (n = 3) => {
+  const lote = ++lotesCreados;
+  return {
+    preguntas: Array.from({ length: n }, (_, i) => ({
+      tipo: i === 0 ? 'intencion_autor' : 'inferencia',
+      enunciado: `¿Qué se puede deducir de la escena número ${i + 1} del texto en el intento ${lote}?`,
+      pista_base: `Relee el párrafo ${i + 1} y fíjate en los verbos.`,
+    })),
+  };
+};
 
 // Replaces fetch; `respuestas` is a list consumed one per call (the last one repeats).
 function simularGroq(...respuestas) {
@@ -220,6 +225,34 @@ describe('POST /api/lecturas/:id/preguntas', () => {
     assert.match(usuario, /No las repitas ni las reformules/);
     for (const p of primero.preguntas) assert.ok(usuario.includes(p.enunciado), 'falta una pregunta previa');
     assert.match(usuario, /Pregunta 1: sobre .+\nPregunta 2: sobre .+\nPregunta 3: sobre /);
+  });
+
+  it('repetir ejercicios: si la IA devuelve una pregunta ya vista, se reintenta (HU-10)', async () => {
+    const igual = groq(JSON.stringify(preguntasValidas()));
+    const distinta = groq(
+      JSON.stringify({
+        preguntas: preguntasValidas().preguntas.map((p, i) => ({ ...p, enunciado: `¿Qué te hace pensar el detalle ${i + 1} del último párrafo?` })),
+      })
+    );
+    simularGroq(igual); // first batch
+    const primero = await nuevoLote(5);
+    const m = simularGroq(igual, distinta); // repeat: identical, then fixed on the retry
+    const segundo = await nuevoLote(5);
+    assert.equal(segundo.origen, 'ia');
+    assert.equal(m.mock.callCount(), 2);
+    const previas = new Set(primero.preguntas.map((p) => p.enunciado));
+    assert.equal(segundo.preguntas.filter((p) => previas.has(p.enunciado)).length, 0);
+  });
+
+  it('repetir ejercicios: si la IA insiste en repetir, cae al respaldo con preguntas distintas', async () => {
+    const igual = groq(JSON.stringify(preguntasValidas()));
+    simularGroq(igual);
+    const primero = await nuevoLote(6);
+    simularGroq(igual); // identical on the first call and on the retry
+    const segundo = await nuevoLote(6);
+    assert.equal(segundo.origen, 'respaldo');
+    const previas = new Set(primero.preguntas.map((p) => p.enunciado));
+    assert.equal(segundo.preguntas.filter((p) => previas.has(p.enunciado)).length, 0);
   });
 
   it('repetir ejercicios sin IA: el respaldo da preguntas distintas a las anteriores (HU-10)', async () => {

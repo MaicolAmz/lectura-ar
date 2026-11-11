@@ -4,7 +4,7 @@ Todos los modelos están en `public/modelos/` (`.glb`, cada uno < 5 MB) con un p
 
 | Archivo | Lectura | Tipo | Tamaño | Fuente y licencia |
 | --- | --- | --- | --- | --- |
-| `zorro.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). Sin modificar. Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
+| `zorro.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). **Modificado:** solo se añadió un nodo raíz con escala 0,004 (el modelo original mide ~155 unidades de largo y en AR aparecería de 155 m); geometría, texturas y animaciones intactas (`scripts/escalar-glb.js`). Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
 | `piedra.glb` | Cantuña y el atrio de San Francisco | Simbólico | 7 KB | Creado para este proyecto con `scripts/generar-modelos.js`. Sin material de terceros. |
 | `volcan.glb` | Taita Imbabura y Mama Cotacachi | Simbólico | 15 KB | Ídem. Dos volcanes, el mayor con cima nevada. |
 | `pez.glb` | Guayas y Quilca | Simbólico | 21 KB | Ídem. Pez genérico, símbolo del río. |
@@ -16,7 +16,13 @@ Todos los modelos están en `public/modelos/` (`.glb`, cada uno < 5 MB) con un p
 
 ## Atribución requerida (CC BY 4.0) — Fox
 
-> "Fox" — modelo de PixelMannen (CC0), rigging y animación de tomkranis (CC BY 4.0), conversión a glTF de @AsoboStudio y @scurest (CC BY 4.0). Fuente: KhronosGroup/glTF-Sample-Assets. Licencia: https://creativecommons.org/licenses/by/4.0/
+> "Fox" — modelo de PixelMannen (CC0), rigging y animación de tomkranis (CC BY 4.0), conversión a glTF de @AsoboStudio y @scurest (CC BY 4.0). Fuente: KhronosGroup/glTF-Sample-Assets. Licencia: https://creativecommons.org/licenses/by/4.0/ . Modificado por LecturaAR: escala reducida.
+
+La atribución también aparece en la pantalla de la lectura (descripción de la escena AR).
+
+## Escala en AR
+
+`<model-viewer>` no pasa su atributo `scale` a Scene Viewer (Android), que solo recibe la URL del modelo (verificado en `packages/model-viewer/src/features/ar.ts`). Por eso la escala del zorro está **dentro del `.glb`** y la escena usa `escala: 1.0`. El resto de modelos simbólicos ya tienen tamaño real (~0,3-0,7 m).
 
 ## Por qué casi todos son simbólicos
 

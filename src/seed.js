@@ -49,7 +49,7 @@ const lecturas = [
       ['graznido', 'Voz característica del cuervo y de otras aves.'],
       ['elogia', 'Del verbo elogiar: decir cosas buenas de alguien.'],
     ],
-    escena: { nombre: 'El zorro del cuento', modelo_url: '/modelos/zorro.glb', descripcion: 'Un zorro listo para engañar con palabras. Se mueve solo; mira de cerca su animación.', escala: 0.004 },
+    escena: { nombre: 'El zorro del cuento', modelo_url: '/modelos/zorro.glb', descripcion: 'Un zorro listo para engañar con palabras. Modelo «Fox»: PixelMannen (CC0), tomkranis y @AsoboStudio/@scurest (CC BY 4.0); escala reducida.', escala: 1.0 },
   },
   {
     curso: 8,

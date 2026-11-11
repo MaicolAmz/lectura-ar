@@ -39,7 +39,7 @@
 | N-01 | Máximo 3 pasos para iniciar una lectura | Del inicio: clic en curso (1) → clic en «Leer» (2) → texto visible. Las pantallas se rotulan «Paso 1/2/3 de 3» | **Pasó**: 2 clics, 3 pantallas |
 | N-02 | Respuesta de la IA < ~8 s | Plazo total de 8 s con reintento incluido (`IA_TIMEOUT_MS`); `npm test` con plazo de 400 ms: tardó 405 ms y respondió con el respaldo; medido con IA real | **Pasó**: IA real 0,3-1,9 s (preguntas 0,5-1,9 s; pistas 0,3-1,0 s) |
 | N-03 | No se piden datos personales | Sin campos de formulario salvo la respuesta; `localStorage` solo guarda `{completadas, ultima}`; el servidor no envía `Set-Cookie` | **Pasó** |
-| N-04 | Si falla la IA, la lectura sigue disponible | Servidor con clave inválida y `npm test` (429, 500, timeout, JSON inválido, sin clave) | **Pasó**: la lectura se mantiene; preguntas y pistas de respaldo con aviso «La ayuda inteligente tardó demasiado…». La API responde 201/200, no 503 |
+| N-04 | Si falla la IA, la lectura sigue disponible | Servidor con clave inválida y `npm test` (429, 500, timeout, JSON inválido, sin clave) | **Pasó**: la lectura se mantiene; preguntas y pistas de respaldo con aviso «La ayuda inteligente no está disponible ahora mismo…». La API responde 201/200, no 503 |
 | N-05 | Si falla la AR, la lectura sigue disponible | F-11 y F-12 | **Pasó** |
 | N-06 | Servidor caído | Detener el servidor y cambiar de pantalla | **Pasó**: «No pudimos conectar con el servidor…» con «Reintentar» |
 
@@ -52,9 +52,11 @@ Nota sobre cookies: al inspeccionar `document.cookie` en `localhost` aparecieron
 | D-F1 | El panel AR mostraba `[object HTMLElement]` en lugar del visor (se pasaba un array a `replaceChildren`) | F-10 en el navegador | `replaceChildren(...escenas.map(escenaAR))`. Corregido antes del commit |
 | D-F2 | `loading="lazy"` no cargaba el modelo si el panel quedaba bajo el pliegue (típico en el celular) | F-10 con el zorro: se quedaba en el póster | Al abrir el panel se desplaza a la vista (`scrollIntoView`) |
 | D-F3 | La pista de la IA terminaba con la palabra **«false»** (un valor booleano pasado a `replaceChildren`) | F-07 | Se filtran los valores falsos antes de pintar. Verificado de nuevo |
-| D-F4 | «Repetir ejercicios»: la IA reformulaba las mismas ideas con otras palabras | F-17 | Cada pregunta recibe un enfoque distinto al azar (9 posibles) y se le pasan las preguntas anteriores. Mejora la variedad, pero **no la garantiza**: en lecturas cortas se repiten ideas. Pendiente: banco de preguntas curadas o deduplicación semántica |
+| D-F4 | «Repetir ejercicios»: la IA reformulaba las mismas ideas con otras palabras | F-17 | Cada pregunta recibe un enfoque distinto al azar (9 posibles) y se le pasan las preguntas anteriores. Además se rechazan en código los lotes con una pregunta idéntica a las ya vistas (D9 en `docs/pruebas_ia.md`). Mejora la variedad, pero **no la garantiza**: en lecturas cortas se repiten ideas. Pendiente: banco de preguntas curadas o deduplicación semántica |
 | D-F5 | Fugas de la respuesta, truncado de salidas de la IA, elogio de respuestas incorrectas y otros (D1-D7) | Pruebas reales de la IA | Ver `docs/pruebas_ia.md` |
 | D-F6 | El respaldo repetía siempre las mismas 3 preguntas | Revisión (HU-10 sin IA) | Pool de 8 plantillas, evitando las ya vistas; cubierto por `npm test` |
+| D-F7 | El zorro dependía del atributo `scale` de `<model-viewer>` (0,004), que **no llega a Scene Viewer** de Android: allí habría aparecido de ~155 m | Revisión del código fuente de `model-viewer` (`ar.ts`), no se vio en un dispositivo | La escala se incorporó al `.glb` (`scripts/escalar-glb.js`) y la escena usa `escala: 1.0`. Verificado en el navegador: mide 0,10 × 0,32 × 0,62 m y conserva sus 3 animaciones. **Confirmar en un Android real** |
+| D-F8 | El aviso del respaldo decía «no respondió a tiempo» aunque la causa fuera otra (p. ej. clave inválida) | Prueba con el servidor de clave inválida | Mensaje neutro: «La ayuda inteligente no está disponible ahora mismo…» |
 
 Observaciones sin corregir: el navegador pide `/favicon.ico` (404 en consola) aunque la página declara su icono en línea; el plan gratuito de Groq devolvió HTTP 429 una vez durante las pruebas (la app cae al respaldo y lo avisa).
 
