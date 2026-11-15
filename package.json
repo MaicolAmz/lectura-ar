@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node src/server.js",
     "seed": "node src/seed.js",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
     "test-ia": "node src/test-ia.js"
   },
   "dependencies": {
