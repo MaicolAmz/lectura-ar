@@ -4,8 +4,8 @@ Todos los modelos están en `public/modelos/` (`.glb`, cada uno < 5 MB) con un p
 
 | Archivo | Lectura | Tipo | Tamaño | Fuente y licencia |
 | --- | --- | --- | --- | --- |
-| `fox.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). **Modificado:** solo se añadió un nodo raíz con escala 0,004 (el modelo original mide ~155 unidades de largo y en AR aparecería de 155 m); geometría, texturas y animaciones intactas (`scripts/escalar-glb.js`). Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
-| `stone.glb` | Cantuña y el atrio de San Francisco | Simbólico | 7 KB | Creado para este proyecto con `scripts/generar-modelos.js`. Sin material de terceros. |
+| `fox.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). **Modificado:** solo se añadió un nodo raíz con escala 0,004 (el modelo original mide ~155 unidades de largo y en AR aparecería de 155 m); geometría, texturas y animaciones intactas (con un script puntual, ya eliminado del repositorio). Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
+| `stone.glb` | Cantuña y el atrio de San Francisco | Simbólico | 7 KB | Creado para este proyecto con un script puntual (ya eliminado del repositorio). Sin material de terceros. |
 | `volcano.glb` | Taita Imbabura y Mama Cotacachi | Simbólico | 15 KB | Ídem. Dos volcanes, el mayor con cima nevada. |
 | `fish.glb` | Guayas y Quilca | Simbólico | 21 KB | Ídem. Pez genérico, símbolo del río. |
 | `tree.glb` | La Tunda | Simbólico | 30 KB | Ídem. Árbol de selva genérico. |
@@ -28,4 +28,4 @@ La atribución también aparece en la pantalla de la lectura (descripción de la
 
 Se buscaron modelos CC0 adecuados en el repositorio de Khronos. Solo *Fox* encajaba y pesaba poco. *Lantern* (CC0, 9,3 MB) y *Barramundi Fish* (CC0, 12 MB) se **descartaron por superar el límite de 5 MB**, por sus texturas de 4096 px; reducirlas requería una herramienta externa que no se ejecutó. Para esas lecturas (y para las que no tienen un modelo libre equivalente, como un volcán ecuatoriano o un manglar) se usó un **modelo genérico simbólico**, de baja complejidad y declarado como tal. No representan fielmente el objeto de la lectura; son una ayuda visual.
 
-Para regenerarlos: `node scripts/generar-modelos.js`.
+Los scripts que los generaron (`scripts/generar-modelos.js` y `scripts/escalar-glb.js`) se eliminaron del repositorio; siguen en el historial de git (commits anteriores a este) si hiciera falta regenerarlos.
