@@ -108,7 +108,7 @@ describe('Cursos y lecturas', () => {
   });
 
   it('los modelos de AR se sirven con el tipo MIME correcto', async () => {
-    const r = await request(app).get('/modelos/piedra.glb');
+    const r = await request(app).get('/modelos/stone.glb');
     assert.equal(r.status, 200);
     assert.match(r.headers['content-type'], /model\/gltf-binary/);
   });

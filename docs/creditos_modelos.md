@@ -4,15 +4,15 @@ Todos los modelos están en `public/modelos/` (`.glb`, cada uno < 5 MB) con un p
 
 | Archivo | Lectura | Tipo | Tamaño | Fuente y licencia |
 | --- | --- | --- | --- | --- |
-| `zorro.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). **Modificado:** solo se añadió un nodo raíz con escala 0,004 (el modelo original mide ~155 unidades de largo y en AR aparecería de 155 m); geometría, texturas y animaciones intactas (`scripts/escalar-glb.js`). Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
-| `piedra.glb` | Cantuña y el atrio de San Francisco | Simbólico | 7 KB | Creado para este proyecto con `scripts/generar-modelos.js`. Sin material de terceros. |
-| `volcan.glb` | Taita Imbabura y Mama Cotacachi | Simbólico | 15 KB | Ídem. Dos volcanes, el mayor con cima nevada. |
-| `pez.glb` | Guayas y Quilca | Simbólico | 21 KB | Ídem. Pez genérico, símbolo del río. |
-| `arbol.glb` | La Tunda | Simbólico | 30 KB | Ídem. Árbol de selva genérico. |
-| `ave.glb` | El cóndor y el colibrí | Simbólico | 23 KB | Ídem. Ave estilizada, no es un cóndor ni un colibrí anatómicamente. |
-| `manglar.glb` | Don Goyo, el viejo del manglar | Simbólico | 29 KB | Ídem. Raíces arqueadas sobre el agua. |
-| `farol.glb` | La Dama Tapada | Simbólico | 9 KB | Ídem. Farol de calle genérico. |
-| `canoa.glb` | Cumandá | Simbólico | 8 KB | Ídem. Canoa con remo. |
+| `fox.glb` | El zorro y el cuervo | **Modelo real** | 159 KB | *Fox*, repositorio [KhronosGroup/glTF-Sample-Assets](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Fox). Modelo: PixelMannen (CC0 1.0). Rigging y animación: tomkranis (CC BY 4.0). Conversión a glTF: @AsoboStudio y @scurest (CC BY 4.0). **Modificado:** solo se añadió un nodo raíz con escala 0,004 (el modelo original mide ~155 unidades de largo y en AR aparecería de 155 m); geometría, texturas y animaciones intactas (`scripts/escalar-glb.js`). Licencias leídas en `Models/Fox/LICENSE.md` y `README.md` del repositorio. |
+| `stone.glb` | Cantuña y el atrio de San Francisco | Simbólico | 7 KB | Creado para este proyecto con `scripts/generar-modelos.js`. Sin material de terceros. |
+| `volcano.glb` | Taita Imbabura y Mama Cotacachi | Simbólico | 15 KB | Ídem. Dos volcanes, el mayor con cima nevada. |
+| `fish.glb` | Guayas y Quilca | Simbólico | 21 KB | Ídem. Pez genérico, símbolo del río. |
+| `tree.glb` | La Tunda | Simbólico | 30 KB | Ídem. Árbol de selva genérico. |
+| `bird.glb` | El cóndor y el colibrí | Simbólico | 23 KB | Ídem. Ave estilizada, no es un cóndor ni un colibrí anatómicamente. |
+| `mangrove.glb` | Don Goyo, el viejo del manglar | Simbólico | 29 KB | Ídem. Raíces arqueadas sobre el agua. |
+| `lantern.glb` | La Dama Tapada | Simbólico | 9 KB | Ídem. Farol de calle genérico. |
+| `canoe.glb` | Cumandá | Simbólico | 8 KB | Ídem. Canoa con remo. |
 
 ## Atribución requerida (CC BY 4.0) — Fox
 

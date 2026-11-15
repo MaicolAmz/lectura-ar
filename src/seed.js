@@ -29,7 +29,7 @@ const lecturas = [
       ['astucia', 'Habilidad para conseguir algo con inteligencia y disimulo, a veces engañando a otro.'],
       ['escalinatas', 'Escaleras amplias y majestuosas, generalmente de piedra, en la entrada de un edificio.'],
     ],
-    escena: { nombre: 'La piedra que falta', modelo_url: '/modelos/piedra.glb', descripcion: 'Un muro de piedra al que le falta un bloque; la piedra escondida está a un lado. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'La piedra que falta', modelo_url: '/modelos/stone.glb', descripcion: 'Un muro de piedra al que le falta un bloque; la piedra escondida está a un lado. Modelo ilustrativo.', escala: 1.0 },
   },
   {
     curso: 8,
@@ -49,7 +49,7 @@ const lecturas = [
       ['graznido', 'Voz característica del cuervo y de otras aves.'],
       ['elogia', 'Del verbo elogiar: decir cosas buenas de alguien.'],
     ],
-    escena: { nombre: 'El zorro del cuento', modelo_url: '/modelos/zorro.glb', descripcion: 'Un zorro listo para engañar con palabras. Modelo «Fox»: PixelMannen (CC0), tomkranis y @AsoboStudio/@scurest (CC BY 4.0); escala reducida.', escala: 1.0 },
+    escena: { nombre: 'El zorro del cuento', modelo_url: '/modelos/fox.glb', descripcion: 'Un zorro listo para engañar con palabras. Modelo «Fox»: PixelMannen (CC0), tomkranis y @AsoboStudio/@scurest (CC BY 4.0); escala reducida.', escala: 1.0 },
   },
   {
     curso: 8,
@@ -68,7 +68,7 @@ const lecturas = [
       ['cumbre', 'Parte más alta de una montaña.'],
       ['siembras', 'Épocas y trabajos de sembrar la tierra para que crezcan las plantas.'],
     ],
-    escena: { nombre: 'Los volcanes de Imbabura', modelo_url: '/modelos/volcan.glb', descripcion: 'Dos montañas vecinas, la mayor con la cima nevada. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'Los volcanes de Imbabura', modelo_url: '/modelos/volcano.glb', descripcion: 'Dos montañas vecinas, la mayor con la cima nevada. Modelo ilustrativo.', escala: 1.0 },
   },
 
   /* ---------------- 9.º ---------------- */
@@ -89,7 +89,7 @@ const lecturas = [
       ['inevitable', 'Que no se puede evitar; que sucederá de todos modos.'],
       ['rendirse', 'Dejar de luchar y aceptar la derrota.'],
     ],
-    escena: { nombre: 'Un pez del río Guayas', modelo_url: '/modelos/pez.glb', descripcion: 'Un pez de río, símbolo del gran río que da nombre a Guayaquil. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'Un pez del río Guayas', modelo_url: '/modelos/fish.glb', descripcion: 'Un pez de río, símbolo del gran río que da nombre a Guayaquil. Modelo ilustrativo.', escala: 1.0 },
   },
   {
     curso: 9,
@@ -109,7 +109,7 @@ const lecturas = [
       ['cununo', 'Tambor alargado que se toca en la música tradicional afroecuatoriana.'],
       ['marimba', 'Instrumento de teclas de madera que se golpean con baquetas, típico de la costa del Pacífico.'],
     ],
-    escena: { nombre: 'Árbol de la selva', modelo_url: '/modelos/arbol.glb', descripcion: 'Un árbol grande de la selva esmeraldeña. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'Árbol de la selva', modelo_url: '/modelos/tree.glb', descripcion: 'Un árbol grande de la selva esmeraldeña. Modelo ilustrativo.', escala: 1.0 },
   },
   {
     curso: 9,
@@ -129,7 +129,7 @@ const lecturas = [
       ['agrietada', 'Con grietas, es decir, con aberturas largas y estrechas.'],
       ['vertiente', 'Agua que brota de la tierra o entre las rocas; manantial.'],
     ],
-    escena: { nombre: 'Un ave de los Andes', modelo_url: '/modelos/ave.glb', descripcion: 'Un ave de alas abiertas sobre las montañas. Modelo ilustrativo: no es un cóndor ni un colibrí exactos.', escala: 1.0 },
+    escena: { nombre: 'Un ave de los Andes', modelo_url: '/modelos/bird.glb', descripcion: 'Un ave de alas abiertas sobre las montañas. Modelo ilustrativo: no es un cóndor ni un colibrí exactos.', escala: 1.0 },
   },
 
   /* ---------------- 10.º ---------------- */
@@ -151,7 +151,7 @@ const lecturas = [
       ['marea', 'Subida y bajada periódica del nivel del mar.'],
       ['palafito', 'Casa construida sobre pilares de madera, sobre el agua o cerca de ella.'],
     ],
-    escena: { nombre: 'El manglar', modelo_url: '/modelos/manglar.glb', descripcion: 'Un árbol de manglar con raíces arqueadas sobre el agua. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'El manglar', modelo_url: '/modelos/mangrove.glb', descripcion: 'Un árbol de manglar con raíces arqueadas sobre el agua. Modelo ilustrativo.', escala: 1.0 },
   },
   {
     curso: 10,
@@ -170,7 +170,7 @@ const lecturas = [
       ['manto', 'Prenda amplia que cubre la cabeza y el cuerpo.'],
       ['prudencia', 'Cuidado y buen juicio para evitar riesgos innecesarios.'],
     ],
-    escena: { nombre: 'Un farol de la vieja Quito', modelo_url: '/modelos/farol.glb', descripcion: 'Un farol de calle, como los que alumbraban las noches coloniales. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'Un farol de la vieja Quito', modelo_url: '/modelos/lantern.glb', descripcion: 'Un farol de calle, como los que alumbraban las noches coloniales. Modelo ilustrativo.', escala: 1.0 },
   },
   {
     curso: 10,
@@ -192,7 +192,7 @@ const lecturas = [
       ['remolino', 'Movimiento giratorio y violento del agua.'],
       ['tramo', 'Parte de un recorrido o de un río.'],
     ],
-    escena: { nombre: 'La canoa del abuelo', modelo_url: '/modelos/canoa.glb', descripcion: 'Una canoa de madera con su remo, lista para salir al río. Modelo ilustrativo.', escala: 1.0 },
+    escena: { nombre: 'La canoa del abuelo', modelo_url: '/modelos/canoe.glb', descripcion: 'Una canoa de madera con su remo, lista para salir al río. Modelo ilustrativo.', escala: 1.0 },
   },
 ];
 
