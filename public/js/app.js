@@ -38,6 +38,15 @@ function h(tag, attrs = {}, ...children) {
   return el;
 }
 
+// The student behind the current profile, or null when the app is used without one.
+function student() {
+  const { profile } = getSession();
+  if (!profile) return null;
+  const avatar = AVATARS[profile.avatar];
+  return { name: profile.nickname, emoji: avatar ? avatar.emoji : '🙂', grade: profile.grade };
+}
+const lowerFirst = (text) => text.charAt(0).toLowerCase() + text.slice(1);
+
 const link = (href, text, className = 'button') => h('a', { href, class: className }, text);
 
 // Ignores results of async work started by a view the user already left.
@@ -122,13 +131,14 @@ function progressBar(done, total, labelId) {
 /* ---------- Home (HU-01, HU-02, HU-09) ---------- */
 function homeView() {
   const last = getLast();
+  const me = student();
   show(
     'Inicio',
     'home',
     h(
       'section',
       { class: 'hero' },
-      h('span', { class: 'chip', style: 'align-self:flex-start' }, getSession().profile ? `Hola, ${getSession().profile.nickname}` : 'Sin registro · Empieza ahora'),
+      h('span', { class: 'chip', style: 'align-self:flex-start' }, me ? `${me.emoji} Hola, ${me.name}` : 'Sin registro · Empieza ahora'),
       h('h1', {}, 'Aprende a leer entre líneas'),
       h('p', { class: 'lead' }, 'Lee textos de tu curso, responde las preguntas de un asistente de IA y mira escenas en realidad aumentada con tu celular.'),
       h('p', { class: 'step' }, 'Paso 1 de 3 · Elige tu curso'),
@@ -136,7 +146,13 @@ function homeView() {
         'div',
         { class: 'grades' },
         GRADES.map((grade) =>
-          h('a', { class: 'grade-btn', href: `#/grade/${grade}` }, h('strong', {}, `${grade}.º`), h('span', {}, `${ORDINALS[grade]} de EGB`))
+          h(
+            'a',
+            { class: `grade-btn${me && me.grade === grade ? ' mine' : ''}`, href: `#/grade/${grade}` },
+            me && me.grade === grade && h('em', { class: 'mine-tag' }, 'Tu curso'),
+            h('strong', {}, `${grade}.º`),
+            h('span', {}, `${ORDINALS[grade]} de EGB`)
+          )
         )
       ),
       last &&
@@ -144,7 +160,7 @@ function homeView() {
           'a',
           { class: 'resume', href: `#/reading/${last.id}` },
           h('span', { class: 'play-icon', 'aria-hidden': 'true' }),
-          h('span', { class: 'text' }, h('small', {}, 'Sigue donde te quedaste'), h('b', {}, `Retomar: ${last.title}`)),
+          h('span', { class: 'text' }, h('small', {}, me ? `${me.name}, sigue donde te quedaste` : 'Sigue donde te quedaste'), h('b', {}, `Retomar: ${last.title}`)),
           h('span', { 'aria-hidden': 'true' }, '→')
         )
     )
@@ -154,6 +170,7 @@ function homeView() {
 /* ---------- Library (HU-03, HU-08) ---------- */
 async function gradeView(grade, token) {
   if (!GRADES.includes(grade)) return notFoundView();
+  const me = student();
   show(gradeName(grade), 'library', h('h1', {}, `Lecturas de ${gradeName(grade)}`), loadingIndicator('Cargando lecturas…'));
   try {
     const readings = await api.readings(grade);
@@ -164,11 +181,11 @@ async function gradeView(grade, token) {
       'library',
       h('p', { class: 'step' }, 'Paso 2 de 3 · Elige una lectura'),
       h('h1', {}, `Lecturas de ${gradeName(grade)}`),
-      h('p', { class: 'lead' }, 'Toca una lectura para empezar. Cada una tiene preguntas de lectura crítica.'),
+      h('p', { class: 'lead' }, `${me ? `${me.name}, toca` : 'Toca'} una lectura para empezar. Cada una tiene preguntas de lectura crítica.`),
       h(
         'div',
         { class: 'card' },
-        h('p', { id: 'progress-text', style: 'margin:0 0 .5rem;font-weight:600' }, `Avance: ${done} de ${readings.length} lecturas completadas`),
+        h('p', { id: 'progress-text', style: 'margin:0 0 .5rem;font-weight:600' }, me ? `${me.emoji} ${me.name}, llevas ${done} de ${readings.length} lecturas completadas` : `Avance: ${done} de ${readings.length} lecturas completadas`),
         progressBar(done, readings.length, 'progress-text')
       ),
       readings.length === 0 && h('p', {}, 'Aún no hay lecturas para este curso.'),
@@ -269,9 +286,11 @@ function arScene(scene) {
 
   // canActivateAR is only reliable once the model is loaded.
   viewer.addEventListener('load', () => {
+    const me = student();
+    const say = (text) => (me ? `${me.name}, ${lowerFirst(text)}` : text);
     status.textContent = viewer.canActivateAR
-      ? 'Toca «Ver en mi espacio» para ponerlo frente a ti con la cámara. También puedes girarlo con el dedo.'
-      : 'Este dispositivo o navegador no admite realidad aumentada, pero puedes girar y acercar el modelo aquí. La lectura sigue disponible.';
+      ? say('Toca «Ver en mi espacio» para ponerlo frente a ti con la cámara. También puedes girarlo con el dedo.')
+      : say('Este dispositivo o navegador no admite realidad aumentada, pero puedes girar y acercar el modelo aquí. La lectura sigue disponible.');
   });
   viewer.addEventListener('error', () => {
     status.textContent = 'No pudimos cargar el modelo 3D. La lectura sigue disponible.';
@@ -326,7 +345,7 @@ function assistantHeader(index, total) {
         'div',
         { class: 'who' },
         h('span', { class: 'avatar', 'aria-hidden': 'true' }),
-        h('div', {}, h('strong', {}, 'Asistente de lectura'), h('small', { class: 'note' }, 'Hecho con IA'))
+        h('div', {}, h('strong', {}, 'Asistente de lectura'), h('small', { class: 'note' }, student() ? `Hecho con IA · para ${student().name}` : 'Hecho con IA'))
       ),
       total > 0 && h('strong', { style: 'color:var(--primary-text)' }, `Pregunta ${index + 1} de ${total}`)
     ),
@@ -343,13 +362,14 @@ function assistantHeader(index, total) {
 // so an AI failure cannot block it.
 function mountAssistant(panel, reading, token) {
   const id = reading.id;
+  const me = student();
   const isAlive = () => token === currentView;
   const paint = (...nodes) => panel.replaceChildren(...nodes.flat().filter((n) => n && n.nodeType));
 
   function intro() {
     paint(
       assistantHeader(0, 0),
-      h('p', { class: 'ai-bubble' }, 'Lee el texto con calma. Cuando estés listo, te haré preguntas para pensar más allá de lo que dice.'),
+      h('p', { class: 'ai-bubble' }, `${me ? `Hola, ${me.name}. ` : ''}Lee el texto con calma. Cuando estés listo, te haré preguntas para pensar más allá de lo que dice.`),
       h('div', { class: 'actions', style: 'margin:0' }, h('button', { type: 'button', class: 'button', onclick: start }, 'Empezar práctica')),
       h('p', { class: 'note', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
     );
@@ -389,7 +409,7 @@ function mountAssistant(panel, reading, token) {
     const form = h(
       'form',
       { novalidate: true, style: 'display:flex;flex-direction:column;gap:1rem' },
-      h('div', {}, h('label', { for: 'answer' }, 'Tu respuesta'), textarea),
+      h('div', {}, h('label', { for: 'answer' }, me ? `${me.emoji} Respuesta de ${me.name}` : 'Tu respuesta'), textarea),
       errorArea,
       h('div', { class: 'actions', style: 'margin:0' }, submit, next),
       hint,
@@ -408,14 +428,14 @@ function mountAssistant(panel, reading, token) {
       sending = true;
       submit.disabled = true;
       errorArea.replaceChildren();
-      hint.replaceChildren(loadingIndicator('Pensando una pista…'));
+      hint.replaceChildren(loadingIndicator(me ? `Pensando una pista para ${me.name}…` : 'Pensando una pista…'));
       try {
         const result = await api.sendFeedback(question.id, answer, attempt);
         if (!isAlive()) return;
         // replaceChildren would print a literal "false", so falsy entries are filtered out.
         hint.replaceChildren(
           ...[
-            h('span', { class: 'hint-label' }, 'PISTA DEL ASISTENTE'),
+            h('span', { class: 'hint-label' }, me ? `PISTA PARA ${me.name.toUpperCase()}` : 'PISTA DEL ASISTENTE'),
             result.feedback,
             result.origin === 'fallback' && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
           ].filter(Boolean)
@@ -447,8 +467,8 @@ function mountAssistant(panel, reading, token) {
     if (getSession().token) api.completeReading(id).catch(() => {});
     paint(
       h('span', { class: 'badge', style: 'align-self:flex-start' }, '✓ Completada'),
-      h('h2', { style: 'margin:0' }, '¡Muy bien! Terminaste los ejercicios'),
-      h('p', { style: 'margin:0' }, 'Esta lectura quedó marcada como completada.'),
+      h('h2', { style: 'margin:0' }, me ? `¡Muy bien, ${me.name}! Terminaste los ejercicios` : '¡Muy bien! Terminaste los ejercicios'),
+      h('p', { style: 'margin:0' }, me ? 'Esta lectura quedó guardada en tu progreso.' : 'Esta lectura quedó marcada como completada.'),
       h(
         'div',
         { class: 'actions', style: 'margin:0' },
@@ -486,6 +506,7 @@ async function readingView(id, token, autoStart = false) {
     const panel = h('aside', { class: 'card assistant', 'aria-label': 'Asistente de lectura' });
     const assistant = mountAssistant(panel, reading, token);
 
+    const me = student();
     const ar = reading.ar_scenes.length ? mountAR(reading.ar_scenes) : null;
     const paragraphs = String(reading.text).split(/\n+/).filter(Boolean);
     show(
@@ -495,7 +516,12 @@ async function readingView(id, token, autoStart = false) {
         'div',
         { style: 'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem' },
         h('p', { class: 'breadcrumbs' }, link(`#/grade/${reading.grade}`, '← Volver a la biblioteca', '')),
-        h('p', { class: 'step' }, 'Paso 3 de 3 · Lee y responde')
+        h(
+          'div',
+          { style: 'display:flex;flex-wrap:wrap;align-items:center;gap:.75rem' },
+          me && h('span', { class: 'reader-chip' }, `${me.emoji} Leyendo como ${me.name}`),
+          h('p', { class: 'step' }, 'Paso 3 de 3 · Lee y responde')
+        )
       ),
       h(
         'div',
@@ -529,9 +555,12 @@ async function readingView(id, token, autoStart = false) {
 /* ---------- Progress (HU-08) ---------- */
 async function progressView(token) {
   show('Mi progreso', 'progress', h('h1', {}, 'Mi progreso'), loadingIndicator('Calculando tu avance…'));
-  const results = await Promise.all(
-    GRADES.map((grade) => api.readings(grade).then((readings) => ({ grade, readings }), (err) => ({ grade, err })))
-  );
+  const me = student();
+  const [results, summary] = await Promise.all([
+    Promise.all(GRADES.map((grade) => api.readings(grade).then((readings) => ({ grade, readings }), (err) => ({ grade, err })))),
+    // Server-side totals are a bonus: the page still works without them.
+    me ? api.progress().catch(() => null) : null,
+  ]);
   if (token !== currentView) return;
 
   const completed = results.flatMap(({ grade, readings }) => (readings || []).filter((r) => isCompleted(r.id)).map((r) => ({ ...r, grade })));
@@ -540,8 +569,18 @@ async function progressView(token) {
   show(
     'Mi progreso',
     'progress',
-    h('h1', {}, 'Mi progreso'),
-    h('p', { class: 'lead' }, getSession().profile ? 'Así vas en cada curso. Tu avance se guarda en tu perfil de este dispositivo.' : 'Así vas en cada curso. Tu avance se guarda solo en este dispositivo.'),
+    h('h1', {}, me ? `${me.emoji} Progreso de ${me.name}` : 'Mi progreso'),
+    h('p', { class: 'lead' }, me ? `${me.name}, así vas en cada curso. Tu avance se guarda en tu perfil de este dispositivo.` : 'Así vas en cada curso. Tu avance se guarda solo en este dispositivo.'),
+    summary &&
+      h(
+        'div',
+        { class: 'stats' },
+        [
+          [summary.completed_readings, 'lecturas completadas'],
+          [summary.readings.reduce((sum, r) => sum + r.questions_answered, 0), 'preguntas trabajadas'],
+          [summary.total_attempts, 'respuestas enviadas'],
+        ].map(([n, label]) => h('div', { class: 'stat' }, h('strong', {}, String(n)), h('span', {}, label)))
+      ),
     h(
       'div',
       { class: 'two-columns' },
@@ -578,7 +617,7 @@ async function progressView(token) {
     h(
       'section',
       { class: 'card', 'aria-label': 'Lecturas completadas' },
-      h('h2', { style: 'margin-top:0' }, 'Lecturas completadas'),
+      h('h2', { style: 'margin-top:0' }, me ? 'Lecturas que ya completaste' : 'Lecturas completadas'),
       completed.length === 0 && h('p', {}, 'Todavía no completas ninguna lectura. ¡Empieza por una!'),
       completed.map((reading) =>
         h(

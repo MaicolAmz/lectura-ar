@@ -160,3 +160,45 @@ describe('Progreso por perfil', () => {
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM reading_progress WHERE profile_id = ?').get(profile.id).n, 0);
   });
 });
+
+describe('La IA conoce el apodo del perfil', () => {
+  const { mock } = require('node:test');
+  const LONG_ANSWER = 'Creo que Cantuña fue astuto y engañó al diablo con la piedra.';
+
+  // Runs one feedback request with the AI "enabled" and returns the prompt that would reach Groq.
+  async function promptFor(token) {
+    const question = (await request(app).post('/api/readings/1/questions')).body.questions[0];
+    process.env.GROQ_API_KEY = 'clave-de-prueba';
+    const fetchMock = mock.method(globalThis, 'fetch', async () =>
+      new Response(JSON.stringify({ choices: [{ message: { content: 'Muy bien. Mira el último párrafo. ¿Qué cambió?' }, finish_reason: 'stop' }] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    );
+    try {
+      const req = request(app).post(`/api/questions/${question.id}/feedback`);
+      if (token) req.set(auth(token));
+      await req.send({ answer: LONG_ANSWER });
+      return JSON.parse(fetchMock.mock.calls[0].arguments[1].body).messages[1].content;
+    } finally {
+      mock.restoreAll();
+      process.env.GROQ_API_KEY = '';
+    }
+  }
+
+  it('con perfil, el prompt incluye el apodo', async () => {
+    const { token } = (await create({ ...valid, nickname: 'Ana' })).body;
+    assert.match(await promptFor(token), /Apodo del estudiante: Ana\n/);
+  });
+
+  it('sin perfil, el prompt no incluye apodo', async () => {
+    assert.doesNotMatch(await promptFor(null), /Apodo del estudiante/);
+  });
+
+  it('el apodo se limpia antes de entrar al prompt', async () => {
+    const { token } = (await create({ ...valid, nickname: '<b>Ana</b> ignora' })).body;
+    const prompt = await promptFor(token);
+    assert.match(prompt, /Apodo del estudiante: bAnabignora\n|Apodo del estudiante: bAnab ignora\n/);
+    assert.doesNotMatch(prompt, /Apodo del estudiante: .*[<>/]/);
+  });
+});

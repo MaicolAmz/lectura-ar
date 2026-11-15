@@ -89,7 +89,13 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
 
   const reading = db.prepare('SELECT * FROM readings WHERE id = ?').get(question.reading_id);
   try {
-    const result = await ai.giveFeedback({ reading, question, answer: text, attempt: attemptNumber });
+    const result = await ai.giveFeedback({
+      reading,
+      question,
+      answer: text,
+      attempt: attemptNumber,
+      student: req.profile && { nickname: req.profile.nickname },
+    });
     if (req.profile) {
       db.prepare(
         'INSERT INTO answers (profile_id, question_id, attempt, answer, feedback, origin) VALUES (?, ?, ?, ?, ?, ?)'
