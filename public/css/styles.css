@@ -182,3 +182,23 @@ main:focus, main:focus-visible { outline: none; box-shadow: none; }
 .ar-scene model-viewer { width: 100%; height: 22rem; max-height: 60vh; border-radius: 16px; background: var(--primary-light); border: 2px solid var(--border); }
 .ar-scene figcaption { font-size: .95rem; color: var(--muted); }
 .ar-button { position: absolute; bottom: .75rem; right: .75rem; }
+
+/* Profile */
+.nav-profile { border: 2px solid var(--border); }
+.profile-form { display: flex; flex-direction: column; gap: 1.25rem; max-width: 36rem; }
+.profile-form label { font-weight: 600; font-size: .9rem; display: block; margin-bottom: .35rem; }
+.profile-form input[type="text"] {
+  width: 100%; min-height: 52px; padding: .5rem .9rem; font: inherit; color: var(--ink);
+  border: 2px solid #8d97c9; border-radius: 14px;
+}
+.choices { border: 0; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+.choices legend { font-weight: 600; font-size: .9rem; padding: 0; margin-bottom: .35rem; }
+.profile-form .choice {
+  display: inline-flex; align-items: center; gap: .4rem; min-height: 48px; margin: 0; padding: 0 1rem; cursor: pointer;
+  font-size: 1rem; background: var(--surface); border: 2px solid var(--border); border-radius: 14px;
+}
+.choice:has(input:checked) { background: var(--primary-light); border-color: var(--primary); }
+.choice:has(input:focus-visible) { outline: 3px solid var(--accent); box-shadow: 0 0 0 5px var(--ink); }
+.choice input { accent-color: var(--primary); }
+.ok-note { margin: 0; font-weight: 600; color: var(--ok); }
+.danger-zone { margin-top: 1.5rem; }

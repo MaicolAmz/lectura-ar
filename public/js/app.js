@@ -1,10 +1,26 @@
 import { api } from './api.js';
-import { isCompleted, markCompleted, getLast, saveLast } from './storage.js';
+import {
+  isCompleted, markCompleted, completedIds, getLast, saveLast, mergeCompleted, resetProgress,
+  getSession, setSession, clearSession,
+} from './storage.js';
 
 const main = document.getElementById('content');
 const GRADES = [8, 9, 10];
 const gradeName = (grade) => `${grade}.º de EGB`;
 const ORDINALS = { 8: 'Octavo', 9: 'Noveno', 10: 'Décimo' };
+const NICKNAME_MAX = 20;
+// Keys must match the avatar list accepted by the server (src/profiles.js).
+const AVATARS = {
+  fox: { emoji: '🦊', name: 'Zorro' },
+  bird: { emoji: '🐦', name: 'Pájaro' },
+  fish: { emoji: '🐟', name: 'Pez' },
+  tree: { emoji: '🌳', name: 'Árbol' },
+  lantern: { emoji: '🏮', name: 'Farol' },
+  canoe: { emoji: '🛶', name: 'Canoa' },
+  volcano: { emoji: '🌋', name: 'Volcán' },
+  stone: { emoji: '🪨', name: 'Piedra' },
+  mangrove: { emoji: '🌿', name: 'Manglar' },
+};
 
 // DOM helper: children are always text nodes or elements, never raw HTML.
 function h(tag, attrs = {}, ...children) {
@@ -32,10 +48,26 @@ function markNav(section) {
     if (a.dataset.nav === section) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  // "Biblioteca" goes to the last grade the student was in (default 8.º).
+  // "Biblioteca" goes to the last grade the student was in, then their profile's grade (default 8.º).
   const last = getLast();
-  document.getElementById('nav-library').setAttribute('href', `#/grade/${last && last.grade ? last.grade : 8}`);
+  const { profile } = getSession();
+  const grade = (last && last.grade) || (profile && profile.grade) || 8;
+  document.getElementById('nav-library').setAttribute('href', `#/grade/${grade}`);
 }
+
+function renderNavProfile() {
+  const { profile } = getSession();
+  const el = document.getElementById('nav-profile');
+  if (profile) {
+    const avatar = AVATARS[profile.avatar];
+    el.textContent = `${avatar ? avatar.emoji : '🙂'} ${profile.nickname}`;
+    el.setAttribute('aria-label', `Mi perfil: ${profile.nickname}`);
+  } else {
+    el.textContent = 'Crear perfil';
+    el.removeAttribute('aria-label');
+  }
+}
+window.addEventListener('sessionchange', renderNavProfile);
 
 function show(title, section, ...nodes) {
   main.replaceChildren(...nodes.flat().filter((n) => n && n.nodeType));
@@ -96,7 +128,7 @@ function homeView() {
     h(
       'section',
       { class: 'hero' },
-      h('span', { class: 'chip', style: 'align-self:flex-start' }, 'Sin registro · Empieza ahora'),
+      h('span', { class: 'chip', style: 'align-self:flex-start' }, getSession().profile ? `Hola, ${getSession().profile.nickname}` : 'Sin registro · Empieza ahora'),
       h('h1', {}, 'Aprende a leer entre líneas'),
       h('p', { class: 'lead' }, 'Lee textos de tu curso, responde las preguntas de un asistente de IA y mira escenas en realidad aumentada con tu celular.'),
       h('p', { class: 'step' }, 'Paso 1 de 3 · Elige tu curso'),
@@ -411,6 +443,8 @@ function mountAssistant(panel, reading, token) {
 
   function finish() {
     markCompleted(id);
+    // Best effort: the local mark already counts, and the next sync retries the upload.
+    if (getSession().token) api.completeReading(id).catch(() => {});
     paint(
       h('span', { class: 'badge', style: 'align-self:flex-start' }, '✓ Completada'),
       h('h2', { style: 'margin:0' }, '¡Muy bien! Terminaste los ejercicios'),
@@ -507,7 +541,7 @@ async function progressView(token) {
     'Mi progreso',
     'progress',
     h('h1', {}, 'Mi progreso'),
-    h('p', { class: 'lead' }, 'Así vas en cada curso. Tu avance se guarda solo en este dispositivo.'),
+    h('p', { class: 'lead' }, getSession().profile ? 'Así vas en cada curso. Tu avance se guarda en tu perfil de este dispositivo.' : 'Así vas en cada curso. Tu avance se guarda solo en este dispositivo.'),
     h(
       'div',
       { class: 'two-columns' },
@@ -559,6 +593,150 @@ async function progressView(token) {
   );
 }
 
+/* ---------- Profile (one per device, no password) ---------- */
+function choiceGroup(legend, name, options, selected) {
+  return h(
+    'fieldset',
+    { class: 'choices' },
+    h('legend', {}, legend),
+    options.map(({ value, label }) =>
+      h(
+        'label',
+        { class: 'choice' },
+        h('input', { type: 'radio', name, value: String(value), checked: String(value) === String(selected) }),
+        h('span', {}, label)
+      )
+    )
+  );
+}
+
+function profileForm({ profile, submitLabel, onSubmit }) {
+  const nickname = h('input', {
+    id: 'nickname', type: 'text', maxlength: String(NICKNAME_MAX), autocomplete: 'off',
+    value: profile ? profile.nickname : null,
+  });
+  const avatars = choiceGroup(
+    'Tu avatar', 'avatar',
+    Object.entries(AVATARS).map(([value, a]) => ({ value, label: `${a.emoji} ${a.name}` })),
+    profile ? profile.avatar : 'fox'
+  );
+  const grades = choiceGroup(
+    'Tu curso', 'grade',
+    GRADES.map((g) => ({ value: g, label: gradeName(g) })),
+    profile ? profile.grade : 8
+  );
+  const status = h('div', { 'aria-live': 'polite' });
+  const submit = h('button', { type: 'submit', class: 'button' }, submitLabel);
+
+  const form = h(
+    'form',
+    { novalidate: true, class: 'profile-form' },
+    h('div', {}, h('label', { for: 'nickname' }, 'Tu apodo (no uses tu nombre completo)'), nickname),
+    avatars,
+    grades,
+    status,
+    h('div', { class: 'actions', style: 'margin:0' }, submit)
+  );
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const data = {
+      nickname: nickname.value.trim().replace(/\s+/g, ' '),
+      avatar: form.elements.avatar.value,
+      grade: Number(form.elements.grade.value),
+    };
+    if (data.nickname.length < 2) {
+      status.replaceChildren(h('p', { class: 'notice', role: 'alert' }, 'Escribe un apodo de al menos 2 letras.'));
+      nickname.focus();
+      return;
+    }
+    submit.disabled = true;
+    status.replaceChildren(loadingIndicator('Guardando…'));
+    try {
+      await onSubmit(data, status);
+    } catch (err) {
+      // Server messages for 400 are already written for the student.
+      status.replaceChildren(h('p', { class: 'notice', role: 'alert' }, err.status === 400 ? err.message : 'No pudimos guardar tu perfil. Inténtalo de nuevo.'));
+    } finally {
+      submit.disabled = false;
+    }
+  });
+  return form;
+}
+
+function profileView() {
+  const { profile } = getSession();
+  if (!profile) {
+    show(
+      'Crear perfil', 'profile',
+      h('h1', {}, 'Crea tu perfil'),
+      h('p', { class: 'lead' }, 'Elige un apodo y un avatar. No necesitas correo ni contraseña: tu perfil queda guardado en este dispositivo.'),
+      h('div', { class: 'card' }, profileForm({
+        submitLabel: 'Crear mi perfil',
+        onSubmit: async (data) => {
+          const { token, profile: created } = await api.createProfile(data);
+          setSession({ token, profile: created });
+          // Completions made before the profile existed are uploaded so they are not lost.
+          await Promise.allSettled(completedIds().map((id) => api.completeReading(id)));
+          location.hash = '#/';
+        },
+      }))
+    );
+    return;
+  }
+  const avatar = AVATARS[profile.avatar];
+  show(
+    'Mi perfil', 'profile',
+    h('h1', {}, `${avatar ? avatar.emoji : '🙂'} ${profile.nickname}`),
+    h('p', { class: 'lead' }, `${gradeName(profile.grade)}. Puedes cambiar tus datos cuando quieras.`),
+    h('div', { class: 'card' }, profileForm({
+      profile,
+      submitLabel: 'Guardar cambios',
+      onSubmit: async (data, status) => {
+        const updated = await api.updateProfile(data);
+        setSession({ token: getSession().token, profile: updated });
+        status.replaceChildren(h('p', { class: 'ok-note', role: 'status' }, '✓ Cambios guardados'));
+      },
+    })),
+    h(
+      'section',
+      { class: 'card danger-zone', 'aria-label': 'Eliminar perfil' },
+      h('h2', { style: 'margin-top:0' }, 'Eliminar mi perfil'),
+      h('p', {}, 'Se borrarán tu perfil y tu progreso. Este dispositivo quedará como nuevo. Esto no se puede deshacer.'),
+      h('button', {
+        type: 'button', class: 'button secondary',
+        onclick: async (e) => {
+          if (!window.confirm('¿Seguro que quieres eliminar tu perfil y todo tu progreso?')) return;
+          const button = e.currentTarget;
+          button.disabled = true;
+          try {
+            await api.deleteProfile();
+            clearSession();
+            resetProgress();
+            location.hash = '#/';
+          } catch {
+            button.disabled = false;
+            button.after(h('p', { class: 'notice', role: 'alert' }, 'No pudimos eliminar el perfil ahora. Inténtalo de nuevo.'));
+          }
+        },
+      }, 'Eliminar mi perfil')
+    )
+  );
+}
+
+// Refreshes the cached profile and merges server-side completions. Offline keeps the cache.
+async function syncProfile() {
+  if (!getSession().token) return;
+  try {
+    const [profile, progress] = await Promise.all([api.me(), api.progress()]);
+    setSession({ token: getSession().token, profile });
+    const doneIds = progress.readings.filter((r) => r.completed).map((r) => r.reading_id);
+    if (mergeCompleted(doneIds)) route();
+  } catch {
+    // 401 is handled in api.js (clears the session); other failures keep the cached profile.
+  }
+}
+
 function notFoundView() {
   show('No encontrada', 'home', h('h1', {}, 'Página no encontrada'), link('#/', 'Ir al inicio'));
 }
@@ -576,8 +754,11 @@ function route() {
   if (name === 'reading' && isValidId) return readingView(number, token);
   if (name === 'practice' && isValidId) return readingView(number, token, true);
   if (name === 'progress') return progressView(token);
+  if (name === 'profile') return profileView();
   return notFoundView();
 }
 
 window.addEventListener('hashchange', route);
+renderNavProfile();
 route();
+syncProfile();
