@@ -2,102 +2,102 @@ const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const db = require('./db');
-const ia = require('./ia');
+const ai = require('./ia');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-const CURSOS = [8, 9, 10];
-const MAX_RESPUESTA = 1500;
+const GRADES = [8, 9, 10];
+const MAX_ANSWER_LENGTH = 1500;
 
-app.get('/api/cursos', (req, res) => {
-  res.json(CURSOS.map((curso) => ({ curso, nombre: `${curso}.º de EGB` })));
+app.get('/api/grades', (req, res) => {
+  res.json(GRADES.map((grade) => ({ grade, name: `${grade}.º de EGB` })));
 });
 
-app.get('/api/lecturas', (req, res) => {
-  const curso = Number(req.query.curso);
-  if (!CURSOS.includes(curso)) {
+app.get('/api/readings', (req, res) => {
+  const grade = Number(req.query.grade);
+  if (!GRADES.includes(grade)) {
     return res.status(400).json({ error: 'El curso debe ser 8, 9 o 10.' });
   }
   const rows = db
-    .prepare('SELECT id, titulo, autor, duracion_min FROM lecturas WHERE curso = ? ORDER BY id')
-    .all(curso);
+    .prepare('SELECT id, title, author, duration_min FROM readings WHERE grade = ? ORDER BY id')
+    .all(grade);
   res.json(rows);
 });
 
-app.get('/api/lecturas/:id', (req, res) => {
-  const lectura = db.prepare('SELECT * FROM lecturas WHERE id = ?').get(req.params.id);
-  if (!lectura) return res.status(404).json({ error: 'Lectura no encontrada.' });
-  lectura.glosario = db
-    .prepare('SELECT id, palabra, definicion FROM glosario WHERE lectura_id = ?')
-    .all(lectura.id);
-  lectura.escenas_ar = db
-    .prepare('SELECT id, nombre, modelo_url, descripcion, escala FROM escenas_ar WHERE lectura_id = ?')
-    .all(lectura.id);
-  res.json(lectura);
+app.get('/api/readings/:id', (req, res) => {
+  const reading = db.prepare('SELECT * FROM readings WHERE id = ?').get(req.params.id);
+  if (!reading) return res.status(404).json({ error: 'Lectura no encontrada.' });
+  reading.glossary = db
+    .prepare('SELECT id, word, definition FROM glossary WHERE reading_id = ?')
+    .all(reading.id);
+  reading.ar_scenes = db
+    .prepare('SELECT id, name, model_url, description, scale FROM ar_scenes WHERE reading_id = ?')
+    .all(reading.id);
+  res.json(reading);
 });
 
-app.post('/api/lecturas/:id/preguntas', async (req, res) => {
-  const lectura = db.prepare('SELECT * FROM lecturas WHERE id = ?').get(req.params.id);
-  if (!lectura) return res.status(404).json({ error: 'Lectura no encontrada.' });
+app.post('/api/readings/:id/questions', async (req, res) => {
+  const reading = db.prepare('SELECT * FROM readings WHERE id = ?').get(req.params.id);
+  if (!reading) return res.status(404).json({ error: 'Lectura no encontrada.' });
 
-  // Questions from earlier batches, so "repetir ejercicios" asks something new (HU-10).
-  const previas = db
-    .prepare('SELECT enunciado FROM preguntas WHERE lectura_id = ? ORDER BY id DESC LIMIT 9')
-    .all(lectura.id)
-    .map((r) => r.enunciado);
+  // Questions from earlier batches, so "repeat exercises" asks something new (HU-10).
+  const previous = db
+    .prepare('SELECT statement FROM questions WHERE reading_id = ? ORDER BY id DESC LIMIT 9')
+    .all(reading.id)
+    .map((row) => row.statement);
 
-  let generado;
+  let generated;
   try {
-    generado = await ia.generarPreguntas(lectura, { previas });
+    generated = await ai.generateQuestions(reading, { previous });
   } catch (err) {
-    console.error('IA generarPreguntas falló:', err.message);
+    console.error('AI generateQuestions failed:', err.message);
     return res.status(503).json({
       error: 'No pudimos generar las preguntas ahora mismo, puedes seguir leyendo.',
     });
   }
 
   const insert = db.prepare(
-    `INSERT INTO preguntas (lectura_id, lote, tipo, enunciado, pista_base, origen)
+    `INSERT INTO questions (reading_id, batch, type, statement, base_hint, origin)
      VALUES (?, ?, ?, ?, ?, ?)`
   );
-  const guardar = db.transaction(() =>
-    generado.preguntas.map((p) => {
-      const info = insert.run(lectura.id, generado.lote, p.tipo, p.enunciado, p.pista_base, generado.origen);
-      return { id: Number(info.lastInsertRowid), tipo: p.tipo, enunciado: p.enunciado, pista_base: p.pista_base };
+  const save = db.transaction(() =>
+    generated.questions.map((q) => {
+      const info = insert.run(reading.id, generated.batch, q.type, q.statement, q.base_hint, generated.origin);
+      return { id: Number(info.lastInsertRowid), type: q.type, statement: q.statement, base_hint: q.base_hint };
     })
   );
-  const preguntas = guardar();
-  res.status(201).json({ lote: generado.lote, origen: generado.origen, preguntas });
+  const questions = save();
+  res.status(201).json({ batch: generated.batch, origin: generated.origin, questions });
 });
 
-app.post('/api/preguntas/:id/retroalimentacion', async (req, res) => {
-  const pregunta = db.prepare('SELECT * FROM preguntas WHERE id = ?').get(req.params.id);
-  if (!pregunta) return res.status(404).json({ error: 'Pregunta no encontrada.' });
+app.post('/api/questions/:id/feedback', async (req, res) => {
+  const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(req.params.id);
+  if (!question) return res.status(404).json({ error: 'Pregunta no encontrada.' });
 
-  const { respuesta, intento } = req.body || {};
-  if (typeof respuesta !== 'string' || respuesta.trim() === '') {
+  const { answer, attempt } = req.body || {};
+  if (typeof answer !== 'string' || answer.trim() === '') {
     return res.status(400).json({ error: 'La respuesta no puede estar vacía.' });
   }
-  const texto = respuesta.trim().slice(0, MAX_RESPUESTA);
-  const n = Number.isInteger(intento) && intento >= 1 ? intento : 1;
+  const text = answer.trim().slice(0, MAX_ANSWER_LENGTH);
+  const attemptNumber = Number.isInteger(attempt) && attempt >= 1 ? attempt : 1;
 
-  const lectura = db.prepare('SELECT * FROM lecturas WHERE id = ?').get(pregunta.lectura_id);
+  const reading = db.prepare('SELECT * FROM readings WHERE id = ?').get(question.reading_id);
   try {
-    const out = await ia.retroalimentar({ lectura, pregunta, respuesta: texto, intento: n });
-    res.json(out);
+    const result = await ai.giveFeedback({ reading, question, answer: text, attempt: attemptNumber });
+    res.json(result);
   } catch (err) {
-    console.error('IA retroalimentar falló:', err.message);
+    console.error('AI giveFeedback failed:', err.message);
     res.status(503).json({
       error: 'No pudimos darte retroalimentación ahora mismo, puedes seguir leyendo.',
     });
   }
 });
 
-app.get('/api/salud', (req, res) => {
-  res.json({ estado: 'ok' });
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok' });
 });
 
 if (require.main === module) {

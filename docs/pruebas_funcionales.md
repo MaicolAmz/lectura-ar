@@ -1,6 +1,8 @@
 # Pruebas funcionales de LecturaAR (HU-01 a HU-11)
 
 > `LecturaAR_Requisitos.md` no está en el repositorio. La correspondencia HU ↔ funcionalidad se **infiere** de los comentarios del código y del enunciado de la Semana 6; revísala contra el documento de requisitos:
+> **Nota sobre nombres:** los casos se ejecutaron con los nombres anteriores del código. Después se tradujeron al inglés y las equivalencias son: rutas del navegador `#/curso/N`→`#/grade/N`, `#/lectura/N`→`#/reading/N`, `#/practica/N`→`#/practice/N`, `#/progreso`→`#/progress`; API `/api/cursos`, `/api/lecturas`, `/api/preguntas`, `/api/salud`→`/api/grades`, `/api/readings`, `/api/questions`, `/api/health` (parámetro `curso`→`grade`); `localStorage` `{completadas, ultima}`→`{completed, last}` (clave `lecturaar:v2`); variable `IA_TIMEOUT_MS`→`AI_TIMEOUT_MS`; `escala`→`scale`. Tras la traducción se repitió el recorrido principal en el navegador (inicio, curso, lectura, glosario, práctica con IA real, respuesta vacía, «dime la respuesta», terminar, repetir, progreso, retomar y las 9 escenas AR) y la caída de la IA con un servidor de clave inválida, sin errores.
+>
 > HU-01 acceso sin registro · HU-02 elegir curso · HU-03 ver lecturas del curso · HU-04 leer el texto · HU-05 preguntas de la IA · HU-06 retroalimentación con pistas · HU-07 AR · HU-08 progreso · HU-09 retomar · HU-10 repetir ejercicios · HU-11 glosario.
 
 ## Cómo se probó

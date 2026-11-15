@@ -1,56 +1,56 @@
 import { api } from './api.js';
-import { estaCompletada, marcarCompletada, obtenerUltima, guardarUltima } from './storage.js';
+import { isCompleted, markCompleted, getLast, saveLast } from './storage.js';
 
-const main = document.getElementById('contenido');
-const CURSOS = [8, 9, 10];
-const nombreCurso = (c) => `${c}.º de EGB`;
-const ORDINAL = { 8: 'Octavo', 9: 'Noveno', 10: 'Décimo' };
+const main = document.getElementById('content');
+const GRADES = [8, 9, 10];
+const gradeName = (grade) => `${grade}.º de EGB`;
+const ORDINALS = { 8: 'Octavo', 9: 'Noveno', 10: 'Décimo' };
 
 // DOM helper: children are always text nodes or elements, never raw HTML.
 function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
-  for (const [k, v] of Object.entries(attrs)) {
-    if (v === false || v == null) continue;
-    if (k === 'class') el.className = v;
-    else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
-    else el.setAttribute(k, v === true ? '' : v);
+  for (const [name, value] of Object.entries(attrs)) {
+    if (value === false || value == null) continue;
+    if (name === 'class') el.className = value;
+    else if (name.startsWith('on')) el.addEventListener(name.slice(2), value);
+    else el.setAttribute(name, value === true ? '' : value);
   }
-  for (const c of children.flat()) {
-    if (c == null || c === false) continue;
-    el.append(c.nodeType ? c : document.createTextNode(String(c)));
+  for (const child of children.flat()) {
+    if (child == null || child === false) continue;
+    el.append(child.nodeType ? child : document.createTextNode(String(child)));
   }
   return el;
 }
 
-const enlace = (href, texto, clase = 'boton') => h('a', { href, class: clase }, texto);
+const link = (href, text, className = 'button') => h('a', { href, class: className }, text);
 
 // Ignores results of async work started by a view the user already left.
-let vistaActual = 0;
+let currentView = 0;
 
-function marcarNav(seccion) {
+function markNav(section) {
   document.querySelectorAll('[data-nav]').forEach((a) => {
-    if (a.dataset.nav === seccion) a.setAttribute('aria-current', 'page');
+    if (a.dataset.nav === section) a.setAttribute('aria-current', 'page');
     else a.removeAttribute('aria-current');
   });
-  // "Biblioteca" goes to the last course the student was in (default 8.º).
-  const ult = obtenerUltima();
-  document.getElementById('nav-biblioteca').setAttribute('href', `#/curso/${ult && ult.curso ? ult.curso : 8}`);
+  // "Biblioteca" goes to the last grade the student was in (default 8.º).
+  const last = getLast();
+  document.getElementById('nav-library').setAttribute('href', `#/grade/${last && last.grade ? last.grade : 8}`);
 }
 
-function mostrar(titulo, seccion, ...nodos) {
-  main.replaceChildren(...nodos.flat().filter((n) => n && n.nodeType));
-  document.title = titulo ? `${titulo} · LecturaAR` : 'LecturaAR';
-  marcarNav(seccion);
+function show(title, section, ...nodes) {
+  main.replaceChildren(...nodes.flat().filter((n) => n && n.nodeType));
+  document.title = title ? `${title} · LecturaAR` : 'LecturaAR';
+  markNav(section);
   main.focus({ preventScroll: true });
   window.scrollTo(0, 0);
 }
 
-function cargando(texto = 'Cargando…') {
-  return h('p', { class: 'cargando', role: 'status' }, texto);
+function loadingIndicator(text = 'Cargando…') {
+  return h('p', { class: 'loading', role: 'status' }, text);
 }
 
-function errorApi(err, { reintentar, volver } = {}) {
-  const msg =
+function apiErrorNotice(err, { retry, back } = {}) {
+  const message =
     err.status === 0
       ? 'No pudimos conectar con el servidor. Revisa tu conexión e inténtalo de nuevo.'
       : err.status === 503
@@ -60,167 +60,167 @@ function errorApi(err, { reintentar, volver } = {}) {
           : 'Algo salió mal. Inténtalo de nuevo en un momento.';
   return h(
     'div',
-    { class: 'aviso', role: 'alert' },
-    h('p', {}, msg),
+    { class: 'notice', role: 'alert' },
+    h('p', {}, message),
     h(
       'div',
-      { class: 'acciones' },
-      reintentar && h('button', { type: 'button', class: 'boton', onclick: reintentar }, 'Reintentar'),
-      volver && enlace(volver.href, volver.texto, 'boton secundario')
+      { class: 'actions' },
+      retry && h('button', { type: 'button', class: 'button', onclick: retry }, 'Reintentar'),
+      back && link(back.href, back.text, 'button secondary')
     )
   );
 }
 
-function barraProgreso(etiqueta, hechas, total, idTexto) {
-  const pct = total ? Math.round((hechas / total) * 100) : 0;
+function progressBar(done, total, labelId) {
+  const percent = total ? Math.round((done / total) * 100) : 0;
   return h(
     'div',
     {
-      class: 'barra-prog',
+      class: 'progress-bar',
       role: 'progressbar',
-      'aria-labelledby': idTexto,
+      'aria-labelledby': labelId,
       'aria-valuemin': '0',
       'aria-valuemax': '100',
-      'aria-valuenow': String(pct),
+      'aria-valuenow': String(percent),
     },
-    h('div', { style: `width:${pct}%` })
+    h('div', { style: `width:${percent}%` })
   );
 }
 
-/* ---------- Inicio (HU-01, HU-02, HU-09) ---------- */
-function vistaInicio() {
-  const ultima = obtenerUltima();
-  mostrar(
+/* ---------- Home (HU-01, HU-02, HU-09) ---------- */
+function homeView() {
+  const last = getLast();
+  show(
     'Inicio',
-    'inicio',
+    'home',
     h(
       'section',
       { class: 'hero' },
       h('span', { class: 'chip', style: 'align-self:flex-start' }, 'Sin registro · Empieza ahora'),
       h('h1', {}, 'Aprende a leer entre líneas'),
       h('p', { class: 'lead' }, 'Lee textos de tu curso, responde las preguntas de un asistente de IA y mira escenas en realidad aumentada con tu celular.'),
-      h('p', { class: 'paso' }, 'Paso 1 de 3 · Elige tu curso'),
+      h('p', { class: 'step' }, 'Paso 1 de 3 · Elige tu curso'),
       h(
         'div',
-        { class: 'cursos' },
-        CURSOS.map((c) =>
-          h('a', { class: 'curso-btn', href: `#/curso/${c}` }, h('strong', {}, `${c}.º`), h('span', {}, `${ORDINAL[c]} de EGB`))
+        { class: 'grades' },
+        GRADES.map((grade) =>
+          h('a', { class: 'grade-btn', href: `#/grade/${grade}` }, h('strong', {}, `${grade}.º`), h('span', {}, `${ORDINALS[grade]} de EGB`))
         )
       ),
-      ultima &&
+      last &&
         h(
           'a',
-          { class: 'retomar', href: `#/lectura/${ultima.id}` },
-          h('span', { class: 'icono-play', 'aria-hidden': 'true' }),
-          h('span', { class: 'txt' }, h('small', {}, 'Sigue donde te quedaste'), h('b', {}, `Retomar: ${ultima.titulo}`)),
+          { class: 'resume', href: `#/reading/${last.id}` },
+          h('span', { class: 'play-icon', 'aria-hidden': 'true' }),
+          h('span', { class: 'text' }, h('small', {}, 'Sigue donde te quedaste'), h('b', {}, `Retomar: ${last.title}`)),
           h('span', { 'aria-hidden': 'true' }, '→')
         )
     )
   );
 }
 
-/* ---------- Biblioteca (HU-03, HU-08) ---------- */
-async function vistaCurso(curso, token) {
-  if (!CURSOS.includes(curso)) return vistaNoEncontrada();
-  mostrar(nombreCurso(curso), 'biblioteca', h('h1', {}, `Lecturas de ${nombreCurso(curso)}`), cargando('Cargando lecturas…'));
+/* ---------- Library (HU-03, HU-08) ---------- */
+async function gradeView(grade, token) {
+  if (!GRADES.includes(grade)) return notFoundView();
+  show(gradeName(grade), 'library', h('h1', {}, `Lecturas de ${gradeName(grade)}`), loadingIndicator('Cargando lecturas…'));
   try {
-    const lecturas = await api.lecturas(curso);
-    if (token !== vistaActual) return;
-    const hechas = lecturas.filter((l) => estaCompletada(l.id)).length;
-    mostrar(
-      nombreCurso(curso),
-      'biblioteca',
-      h('p', { class: 'paso' }, 'Paso 2 de 3 · Elige una lectura'),
-      h('h1', {}, `Lecturas de ${nombreCurso(curso)}`),
+    const readings = await api.readings(grade);
+    if (token !== currentView) return;
+    const done = readings.filter((r) => isCompleted(r.id)).length;
+    show(
+      gradeName(grade),
+      'library',
+      h('p', { class: 'step' }, 'Paso 2 de 3 · Elige una lectura'),
+      h('h1', {}, `Lecturas de ${gradeName(grade)}`),
       h('p', { class: 'lead' }, 'Toca una lectura para empezar. Cada una tiene preguntas de lectura crítica.'),
       h(
         'div',
-        { class: 'tarjeta' },
-        h('p', { id: 'avance-texto', style: 'margin:0 0 .5rem;font-weight:600' }, `Avance: ${hechas} de ${lecturas.length} lecturas completadas`),
-        barraProgreso('Avance del curso', hechas, lecturas.length, 'avance-texto')
+        { class: 'card' },
+        h('p', { id: 'progress-text', style: 'margin:0 0 .5rem;font-weight:600' }, `Avance: ${done} de ${readings.length} lecturas completadas`),
+        progressBar(done, readings.length, 'progress-text')
       ),
-      lecturas.length === 0 && h('p', {}, 'Aún no hay lecturas para este curso.'),
+      readings.length === 0 && h('p', {}, 'Aún no hay lecturas para este curso.'),
       h(
         'div',
-        { class: 'rejilla' },
-        lecturas.map((l) => {
-          const hecha = estaCompletada(l.id);
+        { class: 'grid' },
+        readings.map((reading) => {
+          const isDone = isCompleted(reading.id);
           return h(
             'article',
-            { class: `tarjeta lectura-card${hecha ? ' hecha' : ''}` },
-            h('div', {}, hecha ? h('span', { class: 'insignia' }, '✓ Completada') : h('span', { class: 'insignia nueva' }, 'Nueva')),
-            h('h2', {}, l.titulo),
-            h('p', { class: 'meta' }, `${l.autor} · ${l.duracion_min} min de lectura`),
-            enlace(`#/lectura/${l.id}`, hecha ? 'Leer de nuevo' : 'Leer')
+            { class: `card reading-card${isDone ? ' done' : ''}` },
+            h('div', {}, isDone ? h('span', { class: 'badge' }, '✓ Completada') : h('span', { class: 'badge new' }, 'Nueva')),
+            h('h2', {}, reading.title),
+            h('p', { class: 'meta' }, `${reading.author} · ${reading.duration_min} min de lectura`),
+            link(`#/reading/${reading.id}`, isDone ? 'Leer de nuevo' : 'Leer')
           );
         })
       ),
-      enlace('#/', 'Cambiar curso', 'boton secundario')
+      link('#/', 'Cambiar curso', 'button secondary')
     );
   } catch (err) {
-    if (token !== vistaActual) return;
-    mostrar(nombreCurso(curso), 'biblioteca', h('h1', {}, nombreCurso(curso)), errorApi(err, {
-      reintentar: () => vistaCurso(curso, token),
-      volver: { href: '#/', texto: 'Volver al inicio' },
+    if (token !== currentView) return;
+    show(gradeName(grade), 'library', h('h1', {}, gradeName(grade)), apiErrorNotice(err, {
+      retry: () => gradeView(grade, token),
+      back: { href: '#/', text: 'Volver al inicio' },
     }));
   }
 }
 
-/* ---------- Lectura + asistente (HU-04, HU-05, HU-06, HU-10, HU-11) ---------- */
-const escapar = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/* ---------- Reading + assistant (HU-04, HU-05, HU-06, HU-10, HU-11) ---------- */
+const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // Splits text into text nodes and glossary buttons, so no HTML string is built.
-function textoConGlosario(texto, glosario, alTocar) {
-  const frag = document.createDocumentFragment();
-  const terminos = glosario.filter((g) => g.palabra);
-  if (!terminos.length) {
-    frag.append(texto);
-    return frag;
+function textWithGlossary(text, glossary, onTap) {
+  const fragment = document.createDocumentFragment();
+  const entries = glossary.filter((g) => g.word);
+  if (!entries.length) {
+    fragment.append(text);
+    return fragment;
   }
-  const mapa = new Map(terminos.map((g) => [g.palabra.toLowerCase(), g]));
-  const alternativas = [...terminos].sort((a, b) => b.palabra.length - a.palabra.length).map((g) => escapar(g.palabra));
+  const byWord = new Map(entries.map((g) => [g.word.toLowerCase(), g]));
+  const alternatives = [...entries].sort((a, b) => b.word.length - a.word.length).map((g) => escapeRegex(g.word));
   // Unicode-aware boundaries: \b does not treat accented letters as word characters.
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])(${alternativas.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
-  let ultimo = 0;
-  for (const m of texto.matchAll(re)) {
-    if (m.index > ultimo) frag.append(texto.slice(ultimo, m.index));
-    const entrada = mapa.get(m[0].toLowerCase());
-    const boton = h('button', { type: 'button', class: 'termino', 'aria-expanded': 'false' }, m[0]);
-    boton.addEventListener('click', () => alTocar(entrada, boton));
-    frag.append(boton);
-    ultimo = m.index + m[0].length;
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])(${alternatives.join('|')})(?![\\p{L}\\p{N}])`, 'giu');
+  let lastEnd = 0;
+  for (const match of text.matchAll(re)) {
+    if (match.index > lastEnd) fragment.append(text.slice(lastEnd, match.index));
+    const entry = byWord.get(match[0].toLowerCase());
+    const button = h('button', { type: 'button', class: 'term', 'aria-expanded': 'false' }, match[0]);
+    button.addEventListener('click', () => onTap(entry, button));
+    fragment.append(button);
+    lastEnd = match.index + match[0].length;
   }
-  if (ultimo < texto.length) frag.append(texto.slice(ultimo));
-  return frag;
+  if (lastEnd < text.length) fragment.append(text.slice(lastEnd));
+  return fragment;
 }
 
 /* ---------- AR (HU-07) ---------- */
 // <model-viewer> is loaded only when the student taps "Ver en AR", so a CDN failure
 // can never affect the reading itself. Version pinned on purpose.
 const MODEL_VIEWER_URL = 'https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js';
-let cargaModelViewer = null;
+let modelViewerLoad = null;
 
-function cargarModelViewer() {
-  if (!cargaModelViewer) {
-    cargaModelViewer = import(MODEL_VIEWER_URL)
+function loadModelViewer() {
+  if (!modelViewerLoad) {
+    modelViewerLoad = import(MODEL_VIEWER_URL)
       .then(() => customElements.whenDefined('model-viewer'))
       .catch((err) => {
-        cargaModelViewer = null; // allow a retry
+        modelViewerLoad = null; // allow a retry
         throw err;
       });
   }
-  return cargaModelViewer;
+  return modelViewerLoad;
 }
 
 // One viewer per scene. Posters share the model's name (.glb -> .svg).
-function escenaAR(escena) {
-  const estado = h('p', { class: 'nota ar-estado', role: 'status', 'aria-live': 'polite' }, 'Cargando escena 3D…');
+function arScene(scene) {
+  const status = h('p', { class: 'note ar-status', role: 'status', 'aria-live': 'polite' }, 'Cargando escena 3D…');
   const viewer = h(
     'model-viewer',
     {
-      src: escena.modelo_url,
-      poster: escena.modelo_url.replace(/\.glb$/i, '.svg'),
-      alt: `${escena.nombre}: ${escena.descripcion}`,
+      src: scene.model_url,
+      poster: scene.model_url.replace(/\.glb$/i, '.svg'),
+      alt: `${scene.name}: ${scene.description}`,
       ar: true,
       'ar-modes': 'webxr scene-viewer quick-look',
       'camera-controls': true,
@@ -229,354 +229,355 @@ function escenaAR(escena) {
       'shadow-intensity': '1',
       loading: 'lazy',
       reveal: 'auto',
-      scale: `${escena.escala} ${escena.escala} ${escena.escala}`,
+      scale: `${scene.scale} ${scene.scale} ${scene.scale}`,
     },
-    h('button', { slot: 'ar-button', type: 'button', class: 'boton ar-boton' }, 'Ver en mi espacio')
+    // slot="ar-button" is model-viewer's own API, not one of our CSS names.
+    h('button', { slot: 'ar-button', type: 'button', class: 'button ar-button' }, 'Ver en mi espacio')
   );
 
   // canActivateAR is only reliable once the model is loaded.
   viewer.addEventListener('load', () => {
-    estado.textContent = viewer.canActivateAR
+    status.textContent = viewer.canActivateAR
       ? 'Toca «Ver en mi espacio» para ponerlo frente a ti con la cámara. También puedes girarlo con el dedo.'
       : 'Este dispositivo o navegador no admite realidad aumentada, pero puedes girar y acercar el modelo aquí. La lectura sigue disponible.';
   });
   viewer.addEventListener('error', () => {
-    estado.textContent = 'No pudimos cargar el modelo 3D. La lectura sigue disponible.';
+    status.textContent = 'No pudimos cargar el modelo 3D. La lectura sigue disponible.';
   });
 
-  return h('figure', { class: 'ar-escena' }, viewer, h('figcaption', {}, h('strong', {}, escena.nombre), ' · ', escena.descripcion), estado);
+  return h('figure', { class: 'ar-scene' }, viewer, h('figcaption', {}, h('strong', {}, scene.name), ' · ', scene.description), status);
 }
 
-// Returns { boton, panel }; the panel is filled the first time the button is pressed.
-function montarAR(escenas) {
+// Returns { button, panel }; the panel is filled the first time the button is pressed.
+function mountAR(scenes) {
   const panel = h('section', { class: 'ar-panel', 'aria-label': 'Escena en realidad aumentada', hidden: true });
-  const boton = h('button', { type: 'button', class: 'boton secundario', 'aria-expanded': 'false' }, 'Ver en AR');
-  let cargado = false;
+  const button = h('button', { type: 'button', class: 'button secondary', 'aria-expanded': 'false' }, 'Ver en AR');
+  let loaded = false;
 
-  async function abrir() {
-    panel.replaceChildren(cargando('Preparando la escena 3D…'));
+  async function open() {
+    panel.replaceChildren(loadingIndicator('Preparando la escena 3D…'));
     try {
-      await cargarModelViewer();
-      panel.replaceChildren(...escenas.map(escenaAR));
-      cargado = true;
+      await loadModelViewer();
+      panel.replaceChildren(...scenes.map(arScene));
+      loaded = true;
     } catch {
       panel.replaceChildren(
         h(
           'div',
-          { class: 'aviso', role: 'alert' },
+          { class: 'notice', role: 'alert' },
           h('p', {}, 'No pudimos cargar el módulo de realidad aumentada (¿sin internet?). La lectura sigue disponible.'),
-          h('button', { type: 'button', class: 'boton', onclick: abrir }, 'Reintentar')
+          h('button', { type: 'button', class: 'button', onclick: open }, 'Reintentar')
         )
       );
     }
   }
 
-  boton.addEventListener('click', () => {
-    const mostrar = panel.hidden;
-    panel.hidden = !mostrar;
-    boton.setAttribute('aria-expanded', String(mostrar));
-    boton.textContent = mostrar ? 'Ocultar AR' : 'Ver en AR';
-    if (mostrar && !cargado) abrir();
+  button.addEventListener('click', () => {
+    const willShow = panel.hidden;
+    panel.hidden = !willShow;
+    button.setAttribute('aria-expanded', String(willShow));
+    button.textContent = willShow ? 'Ocultar AR' : 'Ver en AR';
+    if (willShow && !loaded) open();
     // loading="lazy" only fetches the model once the viewer is on screen; on a phone the
     // panel opens below the fold, so bring it into view.
-    if (mostrar) panel.scrollIntoView({ block: 'nearest' });
+    if (willShow) panel.scrollIntoView({ block: 'nearest' });
   });
-  return { boton, panel };
+  return { button, panel };
 }
 
-function cabeceraAsistente(indice, total) {
+function assistantHeader(index, total) {
   return [
     h(
       'div',
-      { class: 'asistente-cab' },
+      { class: 'assistant-header' },
       h(
         'div',
-        { class: 'quien' },
+        { class: 'who' },
         h('span', { class: 'avatar', 'aria-hidden': 'true' }),
-        h('div', {}, h('strong', {}, 'Asistente de lectura'), h('small', { class: 'nota' }, 'Hecho con IA'))
+        h('div', {}, h('strong', {}, 'Asistente de lectura'), h('small', { class: 'note' }, 'Hecho con IA'))
       ),
-      total > 0 && h('strong', { style: 'color:var(--primario-texto)' }, `Pregunta ${indice + 1} de ${total}`)
+      total > 0 && h('strong', { style: 'color:var(--primary-text)' }, `Pregunta ${index + 1} de ${total}`)
     ),
     total > 0 &&
       h(
         'div',
-        { class: 'segmentos', role: 'img', 'aria-label': `Pregunta ${indice + 1} de ${total}` },
-        Array.from({ length: total }, (_, i) => h('span', { class: i <= indice ? 'on' : '' }))
+        { class: 'segments', role: 'img', 'aria-label': `Pregunta ${index + 1} de ${total}` },
+        Array.from({ length: total }, (_, i) => h('span', { class: i <= index ? 'active' : '' }))
       ),
   ];
 }
 
 // The assistant lives in the right column; the reading on the left is never replaced,
 // so an AI failure cannot block it.
-function montarAsistente(panel, lectura, token) {
-  const id = lectura.id;
-  const vivo = () => token === vistaActual;
-  const pintar = (...nodos) => panel.replaceChildren(...nodos.flat().filter((n) => n && n.nodeType));
+function mountAssistant(panel, reading, token) {
+  const id = reading.id;
+  const isAlive = () => token === currentView;
+  const paint = (...nodes) => panel.replaceChildren(...nodes.flat().filter((n) => n && n.nodeType));
 
   function intro() {
-    pintar(
-      cabeceraAsistente(0, 0),
-      h('p', { class: 'burbuja-ia' }, 'Lee el texto con calma. Cuando estés listo, te haré preguntas para pensar más allá de lo que dice.'),
-      h('div', { class: 'acciones', style: 'margin:0' }, h('button', { type: 'button', class: 'boton', onclick: iniciar }, 'Empezar práctica')),
-      h('p', { class: 'nota', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
+    paint(
+      assistantHeader(0, 0),
+      h('p', { class: 'ai-bubble' }, 'Lee el texto con calma. Cuando estés listo, te haré preguntas para pensar más allá de lo que dice.'),
+      h('div', { class: 'actions', style: 'margin:0' }, h('button', { type: 'button', class: 'button', onclick: start }, 'Empezar práctica')),
+      h('p', { class: 'note', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
     );
   }
 
-  async function iniciar() {
-    pintar(cabeceraAsistente(0, 0), cargando('Preparando preguntas…'));
-    let lote;
+  async function start() {
+    paint(assistantHeader(0, 0), loadingIndicator('Preparando preguntas…'));
+    let batch;
     try {
-      lote = await api.generarPreguntas(id);
+      batch = await api.generateQuestions(id);
     } catch (err) {
-      if (!vivo()) return;
-      pintar(
-        cabeceraAsistente(0, 0),
-        errorApi(err, { reintentar: iniciar }),
-        h('p', { class: 'nota', style: 'margin:0' }, 'Puedes seguir leyendo mientras tanto.')
+      if (!isAlive()) return;
+      paint(
+        assistantHeader(0, 0),
+        apiErrorNotice(err, { retry: start }),
+        h('p', { class: 'note', style: 'margin:0' }, 'Puedes seguir leyendo mientras tanto.')
       );
       return;
     }
-    if (!vivo()) return;
-    pregunta(lote.preguntas, 0, lote.origen === 'respaldo');
+    if (!isAlive()) return;
+    showQuestion(batch.questions, 0, batch.origin === 'fallback');
   }
 
-  function pregunta(preguntas, indice, respaldo = false) {
-    const p = preguntas[indice];
-    let intento = 1;
-    let enviando = false;
-    const esUltima = indice === preguntas.length - 1;
+  function showQuestion(questions, index, isFallback = false) {
+    const question = questions[index];
+    let attempt = 1;
+    let sending = false;
+    const isLast = index === questions.length - 1;
 
-    const area = h('textarea', { id: 'respuesta', maxlength: '1500', rows: '5' });
-    const pista = h('div', { class: 'pista', role: 'status', 'aria-live': 'polite' });
-    const error = h('div', { 'aria-live': 'polite' });
-    const enviar = h('button', { type: 'submit', class: 'boton' }, 'Enviar respuesta');
-    const siguiente = h('button', { type: 'button', class: 'boton secundario' }, esUltima ? 'Terminar' : 'Siguiente pregunta');
-    siguiente.addEventListener('click', () => (esUltima ? terminar() : pregunta(preguntas, indice + 1, respaldo)));
+    const textarea = h('textarea', { id: 'answer', maxlength: '1500', rows: '5' });
+    const hint = h('div', { class: 'hint', role: 'status', 'aria-live': 'polite' });
+    const errorArea = h('div', { 'aria-live': 'polite' });
+    const submit = h('button', { type: 'submit', class: 'button' }, 'Enviar respuesta');
+    const next = h('button', { type: 'button', class: 'button secondary' }, isLast ? 'Terminar' : 'Siguiente pregunta');
+    next.addEventListener('click', () => (isLast ? finish() : showQuestion(questions, index + 1, isFallback)));
 
     const form = h(
       'form',
       { novalidate: true, style: 'display:flex;flex-direction:column;gap:1rem' },
-      h('div', {}, h('label', { for: 'respuesta' }, 'Tu respuesta'), area),
-      error,
-      h('div', { class: 'acciones', style: 'margin:0' }, enviar, siguiente),
-      pista,
-      h('p', { class: 'nota', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
+      h('div', {}, h('label', { for: 'answer' }, 'Tu respuesta'), textarea),
+      errorArea,
+      h('div', { class: 'actions', style: 'margin:0' }, submit, next),
+      hint,
+      h('p', { class: 'note', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
     );
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      if (enviando) return;
-      const texto = area.value.trim();
-      if (!texto) {
-        error.replaceChildren(h('p', { class: 'aviso', role: 'alert' }, 'Escribe tu respuesta antes de enviarla.'));
-        area.focus();
+      if (sending) return;
+      const answer = textarea.value.trim();
+      if (!answer) {
+        errorArea.replaceChildren(h('p', { class: 'notice', role: 'alert' }, 'Escribe tu respuesta antes de enviarla.'));
+        textarea.focus();
         return;
       }
-      enviando = true;
-      enviar.disabled = true;
-      error.replaceChildren();
-      pista.replaceChildren(cargando('Pensando una pista…'));
+      sending = true;
+      submit.disabled = true;
+      errorArea.replaceChildren();
+      hint.replaceChildren(loadingIndicator('Pensando una pista…'));
       try {
-        const r = await api.retroalimentar(p.id, texto, intento);
-        if (!vivo()) return;
+        const result = await api.sendFeedback(question.id, answer, attempt);
+        if (!isAlive()) return;
         // replaceChildren would print a literal "false", so falsy entries are filtered out.
-        pista.replaceChildren(
+        hint.replaceChildren(
           ...[
-            h('span', { class: 'etq' }, 'PISTA DEL ASISTENTE'),
-            r.retroalimentacion,
-            r.origen === 'respaldo' && h('small', { class: 'nota', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
+            h('span', { class: 'hint-label' }, 'PISTA DEL ASISTENTE'),
+            result.feedback,
+            result.origin === 'fallback' && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
           ].filter(Boolean)
         );
-        intento += 1;
-        enviar.textContent = 'Reenviar respuesta corregida';
+        attempt += 1;
+        submit.textContent = 'Reenviar respuesta corregida';
       } catch (err) {
-        if (!vivo()) return;
-        pista.replaceChildren();
-        error.replaceChildren(errorApi(err, { reintentar: () => form.requestSubmit() }));
+        if (!isAlive()) return;
+        hint.replaceChildren();
+        errorArea.replaceChildren(apiErrorNotice(err, { retry: () => form.requestSubmit() }));
       } finally {
-        enviando = false;
-        enviar.disabled = false;
+        sending = false;
+        submit.disabled = false;
       }
     });
 
-    pintar(
-      cabeceraAsistente(indice, preguntas.length),
-      respaldo && h('p', { class: 'nota', style: 'margin:0' }, 'La ayuda inteligente no está disponible ahora mismo, así que usamos preguntas generales. Puedes seguir leyendo y practicando.'),
-      h('p', { class: 'burbuja-ia' }, p.enunciado),
+    paint(
+      assistantHeader(index, questions.length),
+      isFallback && h('p', { class: 'note', style: 'margin:0' }, 'La ayuda inteligente no está disponible ahora mismo, así que usamos preguntas generales. Puedes seguir leyendo y practicando.'),
+      h('p', { class: 'ai-bubble' }, question.statement),
       form
     );
-    area.focus({ preventScroll: true });
+    textarea.focus({ preventScroll: true });
   }
 
-  function terminar() {
-    marcarCompletada(id);
-    pintar(
-      h('span', { class: 'insignia', style: 'align-self:flex-start' }, '✓ Completada'),
+  function finish() {
+    markCompleted(id);
+    paint(
+      h('span', { class: 'badge', style: 'align-self:flex-start' }, '✓ Completada'),
       h('h2', { style: 'margin:0' }, '¡Muy bien! Terminaste los ejercicios'),
       h('p', { style: 'margin:0' }, 'Esta lectura quedó marcada como completada.'),
       h(
         'div',
-        { class: 'acciones', style: 'margin:0' },
-        h('button', { type: 'button', class: 'boton', onclick: iniciar }, 'Repetir ejercicios'),
-        enlace(`#/curso/${lectura.curso}`, 'Volver a la biblioteca', 'boton secundario')
+        { class: 'actions', style: 'margin:0' },
+        h('button', { type: 'button', class: 'button', onclick: start }, 'Repetir ejercicios'),
+        link(`#/grade/${reading.grade}`, 'Volver a la biblioteca', 'button secondary')
       )
     );
   }
 
-  return { intro, iniciar };
+  return { intro, start };
 }
 
-async function vistaLectura(id, token, autoIniciar = false) {
-  mostrar('Lectura', 'biblioteca', cargando('Cargando lectura…'));
+async function readingView(id, token, autoStart = false) {
+  show('Lectura', 'library', loadingIndicator('Cargando lectura…'));
   try {
-    const l = await api.lectura(id);
-    if (token !== vistaActual) return;
-    guardarUltima({ id: l.id, titulo: l.titulo, curso: l.curso });
-    marcarNav('biblioteca');
+    const reading = await api.reading(id);
+    if (token !== currentView) return;
+    saveLast({ id: reading.id, title: reading.title, grade: reading.grade });
+    markNav('library');
 
-    const caja = h('div', { class: 'definicion', role: 'status', 'aria-live': 'polite' });
-    let abierto = null;
-    const alTocar = (g, boton) => {
-      if (abierto) abierto.setAttribute('aria-expanded', 'false');
-      if (abierto === boton) {
-        abierto = null;
-        caja.replaceChildren();
+    const definitionBox = h('div', { class: 'definition', role: 'status', 'aria-live': 'polite' });
+    let openTerm = null;
+    const onTap = (entry, button) => {
+      if (openTerm) openTerm.setAttribute('aria-expanded', 'false');
+      if (openTerm === button) {
+        openTerm = null;
+        definitionBox.replaceChildren();
         return;
       }
-      abierto = boton;
-      boton.setAttribute('aria-expanded', 'true');
-      caja.replaceChildren(h('strong', {}, g.palabra), ': ', g.definicion);
+      openTerm = button;
+      button.setAttribute('aria-expanded', 'true');
+      definitionBox.replaceChildren(h('strong', {}, entry.word), ': ', entry.definition);
     };
 
-    const panel = h('aside', { class: 'tarjeta asistente', 'aria-label': 'Asistente de lectura' });
-    const asistente = montarAsistente(panel, l, token);
+    const panel = h('aside', { class: 'card assistant', 'aria-label': 'Asistente de lectura' });
+    const assistant = mountAssistant(panel, reading, token);
 
-    const ar = l.escenas_ar.length ? montarAR(l.escenas_ar) : null;
-    const parrafos = String(l.texto).split(/\n+/).filter(Boolean);
-    mostrar(
-      l.titulo,
-      'biblioteca',
+    const ar = reading.ar_scenes.length ? mountAR(reading.ar_scenes) : null;
+    const paragraphs = String(reading.text).split(/\n+/).filter(Boolean);
+    show(
+      reading.title,
+      'library',
       h(
         'div',
         { style: 'display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem' },
-        h('p', { class: 'migas' }, enlace(`#/curso/${l.curso}`, '← Volver a la biblioteca', '')),
-        h('p', { class: 'paso' }, 'Paso 3 de 3 · Lee y responde')
+        h('p', { class: 'breadcrumbs' }, link(`#/grade/${reading.grade}`, '← Volver a la biblioteca', '')),
+        h('p', { class: 'step' }, 'Paso 3 de 3 · Lee y responde')
       ),
       h(
         'div',
-        { class: 'lectura-layout' },
+        { class: 'reading-layout' },
         h(
           'article',
-          { class: 'tarjeta lectura-texto', style: 'display:flex;flex-direction:column;gap:1rem' },
-          h('h1', {}, l.titulo),
-          h('p', { class: 'nota', style: 'margin:0' }, `${l.autor} · ${nombreCurso(l.curso)} · ${l.duracion_min} min`),
-          l.glosario.length > 0 && h('p', { class: 'nota', style: 'margin:0' }, 'Toca las palabras resaltadas para ver su significado.'),
-          h('div', { class: 'cuerpo' }, parrafos.map((p) => h('p', {}, textoConGlosario(p, l.glosario, alTocar)))),
-          caja,
-          l.fuente && h('p', { class: 'nota', style: 'margin:0' }, `Fuente: ${l.fuente}`),
-          ar && h('div', { class: 'acciones', style: 'margin:0' }, ar.boton),
+          { class: 'card reading-text', style: 'display:flex;flex-direction:column;gap:1rem' },
+          h('h1', {}, reading.title),
+          h('p', { class: 'note', style: 'margin:0' }, `${reading.author} · ${gradeName(reading.grade)} · ${reading.duration_min} min`),
+          reading.glossary.length > 0 && h('p', { class: 'note', style: 'margin:0' }, 'Toca las palabras resaltadas para ver su significado.'),
+          h('div', { class: 'reading-body' }, paragraphs.map((p) => h('p', {}, textWithGlossary(p, reading.glossary, onTap)))),
+          definitionBox,
+          reading.source && h('p', { class: 'note', style: 'margin:0' }, `Fuente: ${reading.source}`),
+          ar && h('div', { class: 'actions', style: 'margin:0' }, ar.button),
           ar && ar.panel
         ),
         panel
       )
     );
-    if (autoIniciar) asistente.iniciar();
-    else asistente.intro();
+    if (autoStart) assistant.start();
+    else assistant.intro();
   } catch (err) {
-    if (token !== vistaActual) return;
-    mostrar('Lectura', 'biblioteca', h('h1', {}, 'Lectura'), errorApi(err, {
-      reintentar: () => vistaLectura(id, token, autoIniciar),
-      volver: { href: '#/', texto: 'Volver al inicio' },
+    if (token !== currentView) return;
+    show('Lectura', 'library', h('h1', {}, 'Lectura'), apiErrorNotice(err, {
+      retry: () => readingView(id, token, autoStart),
+      back: { href: '#/', text: 'Volver al inicio' },
     }));
   }
 }
 
-/* ---------- Progreso (HU-08) ---------- */
-async function vistaProgreso(token) {
-  mostrar('Mi progreso', 'progreso', h('h1', {}, 'Mi progreso'), cargando('Calculando tu avance…'));
-  const resultados = await Promise.all(
-    CURSOS.map((c) => api.lecturas(c).then((ls) => ({ curso: c, ls }), (err) => ({ curso: c, err })))
+/* ---------- Progress (HU-08) ---------- */
+async function progressView(token) {
+  show('Mi progreso', 'progress', h('h1', {}, 'Mi progreso'), loadingIndicator('Calculando tu avance…'));
+  const results = await Promise.all(
+    GRADES.map((grade) => api.readings(grade).then((readings) => ({ grade, readings }), (err) => ({ grade, err })))
   );
-  if (token !== vistaActual) return;
+  if (token !== currentView) return;
 
-  const completadas = resultados.flatMap(({ curso, ls }) => (ls || []).filter((l) => estaCompletada(l.id)).map((l) => ({ ...l, curso })));
-  const ultima = obtenerUltima();
+  const completed = results.flatMap(({ grade, readings }) => (readings || []).filter((r) => isCompleted(r.id)).map((r) => ({ ...r, grade })));
+  const last = getLast();
 
-  mostrar(
+  show(
     'Mi progreso',
-    'progreso',
+    'progress',
     h('h1', {}, 'Mi progreso'),
     h('p', { class: 'lead' }, 'Así vas en cada curso. Tu avance se guarda solo en este dispositivo.'),
     h(
       'div',
-      { class: 'panel-dos' },
+      { class: 'two-columns' },
       h(
         'section',
-        { class: 'tarjeta', 'aria-label': 'Avance por curso' },
+        { class: 'card', 'aria-label': 'Avance por curso' },
         h('h2', { style: 'margin-top:0' }, 'Avance por curso'),
-        resultados.map(({ curso, ls, err }) => {
-          if (err) return h('p', {}, `${nombreCurso(curso)}: no pudimos cargar este curso ahora.`);
-          const hechas = ls.filter((l) => estaCompletada(l.id)).length;
-          const pct = ls.length ? Math.round((hechas / ls.length) * 100) : 0;
-          const idTexto = `prog-${curso}`;
+        results.map(({ grade, readings, err }) => {
+          if (err) return h('p', {}, `${gradeName(grade)}: no pudimos cargar este curso ahora.`);
+          const done = readings.filter((r) => isCompleted(r.id)).length;
+          const percent = readings.length ? Math.round((done / readings.length) * 100) : 0;
+          const labelId = `progress-${grade}`;
           return h(
             'div',
             {},
             h(
               'div',
-              { class: 'fila-prog', id: idTexto },
-              h('a', { href: `#/curso/${curso}`, style: 'font-weight:600' }, nombreCurso(curso)),
-              h('span', {}, `${hechas} de ${ls.length} lecturas (${pct}%)`)
+              { class: 'progress-row', id: labelId },
+              h('a', { href: `#/grade/${grade}`, style: 'font-weight:600' }, gradeName(grade)),
+              h('span', {}, `${done} de ${readings.length} lecturas (${percent}%)`)
             ),
-            barraProgreso(nombreCurso(curso), hechas, ls.length, idTexto)
+            progressBar(done, readings.length, labelId)
           );
         })
       ),
-      ultima &&
+      last &&
         h(
           'section',
-          { class: 'tarjeta oscura', 'aria-label': 'Retomar lectura' },
-          h('div', {}, h('small', {}, 'Sigue donde te quedaste'), h('h2', {}, ultima.titulo)),
-          enlace(`#/lectura/${ultima.id}`, 'Continuar →', 'boton amarillo')
+          { class: 'card dark-card', 'aria-label': 'Retomar lectura' },
+          h('div', {}, h('small', {}, 'Sigue donde te quedaste'), h('h2', {}, last.title)),
+          link(`#/reading/${last.id}`, 'Continuar →', 'button yellow')
         )
     ),
     h(
       'section',
-      { class: 'tarjeta', 'aria-label': 'Lecturas completadas' },
+      { class: 'card', 'aria-label': 'Lecturas completadas' },
       h('h2', { style: 'margin-top:0' }, 'Lecturas completadas'),
-      completadas.length === 0 && h('p', {}, 'Todavía no completas ninguna lectura. ¡Empieza por una!'),
-      completadas.map((l) =>
+      completed.length === 0 && h('p', {}, 'Todavía no completas ninguna lectura. ¡Empieza por una!'),
+      completed.map((reading) =>
         h(
           'div',
-          { class: 'completada' },
-          h('span', { class: 'insignia', 'aria-hidden': 'true' }, '✓'),
-          h('div', {}, h('strong', {}, l.titulo), h('small', {}, `${l.autor} · ${nombreCurso(l.curso)}`)),
-          enlace(`#/practica/${l.id}`, 'Repetir con nuevas preguntas', 'boton secundario')
+          { class: 'completed' },
+          h('span', { class: 'badge', 'aria-hidden': 'true' }, '✓'),
+          h('div', {}, h('strong', {}, reading.title), h('small', {}, `${reading.author} · ${gradeName(reading.grade)}`)),
+          link(`#/practice/${reading.id}`, 'Repetir con nuevas preguntas', 'button secondary')
         )
       )
     )
   );
 }
 
-function vistaNoEncontrada() {
-  mostrar('No encontrada', 'inicio', h('h1', {}, 'Página no encontrada'), enlace('#/', 'Ir al inicio'));
+function notFoundView() {
+  show('No encontrada', 'home', h('h1', {}, 'Página no encontrada'), link('#/', 'Ir al inicio'));
 }
 
 /* ---------- Router ---------- */
-function enrutar() {
-  const token = ++vistaActual;
-  const partes = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
-  const [ruta, param] = partes;
-  const num = Number(param);
-  const idValido = Number.isInteger(num) && num > 0;
+function route() {
+  const token = ++currentView;
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean);
+  const [name, param] = parts;
+  const number = Number(param);
+  const isValidId = Number.isInteger(number) && number > 0;
 
-  if (!ruta) return vistaInicio();
-  if (ruta === 'curso' && idValido) return vistaCurso(num, token);
-  if (ruta === 'lectura' && idValido) return vistaLectura(num, token);
-  if (ruta === 'practica' && idValido) return vistaLectura(num, token, true);
-  if (ruta === 'progreso') return vistaProgreso(token);
-  return vistaNoEncontrada();
+  if (!name) return homeView();
+  if (name === 'grade' && isValidId) return gradeView(number, token);
+  if (name === 'reading' && isValidId) return readingView(number, token);
+  if (name === 'practice' && isValidId) return readingView(number, token, true);
+  if (name === 'progress') return progressView(token);
+  return notFoundView();
 }
 
-window.addEventListener('hashchange', enrutar);
-enrutar();
+window.addEventListener('hashchange', route);
+route();

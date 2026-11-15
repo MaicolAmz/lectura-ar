@@ -1,49 +1,50 @@
 // All progress lives in the browser. If localStorage is unavailable or throws
 // (private mode, blocked site data), fall back to memory so the app keeps working.
-const KEY = 'lecturaar:v1';
-let memoria = { completadas: {}, ultima: null };
+// v2: the stored fields were renamed to English (completed, last); v1 progress is ignored.
+const KEY = 'lecturaar:v2';
+let memory = { completed: {}, last: null };
 
-function leer() {
+function readState() {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const data = JSON.parse(raw);
       if (data && typeof data === 'object') {
-        memoria = {
-          completadas: data.completadas && typeof data.completadas === 'object' ? data.completadas : {},
-          ultima: data.ultima && typeof data.ultima === 'object' ? data.ultima : null,
+        memory = {
+          completed: data.completed && typeof data.completed === 'object' ? data.completed : {},
+          last: data.last && typeof data.last === 'object' ? data.last : null,
         };
       }
     }
   } catch {
     // Corrupt JSON or storage blocked: keep using the in-memory copy.
   }
-  return memoria;
+  return memory;
 }
 
-function guardar() {
+function saveState() {
   try {
-    localStorage.setItem(KEY, JSON.stringify(memoria));
+    localStorage.setItem(KEY, JSON.stringify(memory));
   } catch {
     // Ignored on purpose; progress just won't persist across reloads.
   }
 }
 
-export function estaCompletada(id) {
-  return Boolean(leer().completadas[String(id)]);
+export function isCompleted(id) {
+  return Boolean(readState().completed[String(id)]);
 }
 
-export function marcarCompletada(id) {
-  leer().completadas[String(id)] = true;
-  guardar();
+export function markCompleted(id) {
+  readState().completed[String(id)] = true;
+  saveState();
 }
 
-export function obtenerUltima() {
-  const u = leer().ultima;
-  return u && u.id && u.titulo ? u : null;
+export function getLast() {
+  const last = readState().last;
+  return last && last.id && last.title ? last : null;
 }
 
-export function guardarUltima({ id, titulo, curso }) {
-  leer().ultima = { id, titulo, curso };
-  guardar();
+export function saveLast({ id, title, grade }) {
+  readState().last = { id, title, grade };
+  saveState();
 }

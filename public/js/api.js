@@ -34,13 +34,13 @@ async function request(path, options = {}) {
 }
 
 export const api = {
-  cursos: () => request('/api/cursos'),
-  lecturas: (curso) => request(`/api/lecturas?curso=${encodeURIComponent(curso)}`),
-  lectura: (id) => request(`/api/lecturas/${encodeURIComponent(id)}`),
-  generarPreguntas: (id) => request(`/api/lecturas/${encodeURIComponent(id)}/preguntas`, { method: 'POST' }),
-  retroalimentar: (preguntaId, respuesta, intento) =>
-    request(`/api/preguntas/${encodeURIComponent(preguntaId)}/retroalimentacion`, {
+  grades: () => request('/api/grades'),
+  readings: (grade) => request(`/api/readings?grade=${encodeURIComponent(grade)}`),
+  reading: (id) => request(`/api/readings/${encodeURIComponent(id)}`),
+  generateQuestions: (readingId) => request(`/api/readings/${encodeURIComponent(readingId)}/questions`, { method: 'POST' }),
+  sendFeedback: (questionId, answer, attempt) =>
+    request(`/api/questions/${encodeURIComponent(questionId)}/feedback`, {
       method: 'POST',
-      body: JSON.stringify({ respuesta, intento }),
+      body: JSON.stringify({ answer, attempt }),
     }),
 };

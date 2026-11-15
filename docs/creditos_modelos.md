@@ -22,7 +22,7 @@ La atribución también aparece en la pantalla de la lectura (descripción de la
 
 ## Escala en AR
 
-`<model-viewer>` no pasa su atributo `scale` a Scene Viewer (Android), que solo recibe la URL del modelo (verificado en `packages/model-viewer/src/features/ar.ts`). Por eso la escala del zorro está **dentro del `.glb`** y la escena usa `escala: 1.0`. El resto de modelos simbólicos ya tienen tamaño real (~0,3-0,7 m).
+`<model-viewer>` no pasa su atributo `scale` a Scene Viewer (Android), que solo recibe la URL del modelo (verificado en `packages/model-viewer/src/features/ar.ts`). Por eso la escala del zorro está **dentro del `.glb`** y la escena usa `scale: 1.0`. El resto de modelos simbólicos ya tienen tamaño real (~0,3-0,7 m).
 
 ## Por qué casi todos son simbólicos
 
