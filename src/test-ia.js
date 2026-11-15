@@ -1,8 +1,8 @@
 // Manual check of the Groq integration. Prints Markdown so the output can go into docs/pruebas_ia.md.
-//   npm run probar-ia                      (uses GROQ_API_KEY from .env)
-//   npm run probar-ia -- --clave-invalida  (must fall back to 'respaldo')
-//   npm run probar-ia -- --ids 1,2,3       (readings to test; default: first 3)
-//   npm run probar-ia -- --espera 45       (seconds to wait between readings; the free Groq tier rate-limits with 429)
+//   npm run test-ia                      (uses GROQ_API_KEY from .env)
+//   npm run test-ia -- --clave-invalida  (must fall back to 'respaldo')
+//   npm run test-ia -- --ids 1,2,3       (readings to test; default: first 3)
+//   npm run test-ia -- --espera 45       (seconds to wait between readings; the free Groq tier rate-limits with 429)
 const db = require('./db');
 const ia = require('./ia');
 

@@ -22,24 +22,24 @@ Variables de entorno opcionales: `PORT` (3000 por defecto), `DB_PATH` (`lecturaa
 1. Crea una cuenta y una clave en https://console.groq.com/keys (el plan gratuito basta).
 2. Copia `.env.example` a `.env` y completa:
 
-| Variable | Descripción |
-| --- | --- |
-| `GROQ_API_KEY` | Tu clave de Groq. Nunca se escribe en el código ni en los logs, y `.env` está en `.gitignore`. Si está vacía se usa el respaldo. |
-| `GROQ_MODEL` | Modelo a usar. Por defecto `openai/gpt-oss-20b`. Si tu cuenta tiene acceso, también puedes usar `llama-3.3-70b-versatile` (a nosotros nos devolvió `model_not_found`). Consulta los disponibles con `GET https://api.groq.com/openai/v1/models`. |
+| Variable       | Descripción                                                                                                                                                                                                                                      |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GROQ_API_KEY` | Tu clave de Groq. Nunca se escribe en el código ni en los logs, y `.env` está en `.gitignore`. Si está vacía se usa el respaldo.                                                                                                                 |
+| `GROQ_MODEL`   | Modelo a usar. Por defecto `openai/gpt-oss-20b`. Si tu cuenta tiene acceso, también puedes usar `llama-3.3-70b-versatile` (a nosotros nos devolvió `model_not_found`). Consulta los disponibles con `GET https://api.groq.com/openai/v1/models`. |
 
-3. Reinicia el servidor. Para probar la integración: `npm run probar-ia` (con `-- --clave-invalida` comprueba que cae al respaldo).
+3. Reinicia el servidor. Para probar la integración: `npm run test-ia` (con `-- --clave-invalida` comprueba que cae al respaldo).
 
 ## Frontend
 
 HTML/CSS/JS simples (módulos ES, sin build) en `public/`, servidos por Express. Con el servidor en marcha, abre **http://localhost:3000**.
 
-| Ruta (hash) | Pantalla |
-| --- | --- |
-| `#/` | Inicio: botones 8.º, 9.º y 10.º, y "Retomar" si hay lectura abierta |
-| `#/curso/8` | Biblioteca del curso con insignias y barra de avance |
-| `#/lectura/3` | Lectura con glosario interactivo y botón "Ver en AR" |
-| `#/practica/3` | Preguntas una a una con retroalimentación |
-| `#/progreso` | Resumen de avance por curso |
+| Ruta (hash)    | Pantalla                                                            |
+| -------------- | ------------------------------------------------------------------- |
+| `#/`           | Inicio: botones 8.º, 9.º y 10.º, y "Retomar" si hay lectura abierta |
+| `#/curso/8`    | Biblioteca del curso con insignias y barra de avance                |
+| `#/lectura/3`  | Lectura con glosario interactivo y botón "Ver en AR"                |
+| `#/practica/3` | Preguntas una a una con retroalimentación                           |
+| `#/progreso`   | Resumen de avance por curso                                         |
 
 El progreso (lecturas completadas y última lectura) se guarda solo en `localStorage`; si no está disponible, la app funciona con memoria temporal.
 
@@ -47,7 +47,7 @@ El progreso (lecturas completadas y última lectura) se guarda solo en `localSto
 
 ```powershell
 npm test                  # API con node:test + supertest; Groq se simula, no gasta cuota ni usa la clave
-npm run probar-ia         # prueba manual contra Groq real (3 lecturas x 5 casos); usa --espera 50 para evitar el 429
+npm run test-ia         # prueba manual contra Groq real (3 lecturas x 5 casos); usa --espera 50 para evitar el 429
 ```
 
 Resultados y casos manuales en `docs/pruebas_funcionales.md` y `docs/pruebas_ia.md`.
@@ -73,11 +73,11 @@ El túnel imprime una URL `https://…` (por ejemplo `https://algo.trycloudflare
 
 ## Endpoints
 
-| Método | Ruta | Descripción | Errores |
-| --- | --- | --- | --- |
-| GET | `/api/cursos` | Lista de cursos `[{curso, nombre}]` | — |
-| GET | `/api/lecturas?curso=8` | Título, autor y duración de las lecturas del curso | 400 si el curso no es 8, 9 o 10 |
-| GET | `/api/lecturas/:id` | Lectura completa + `glosario` + `escenas_ar` | 404 si no existe |
-| POST | `/api/lecturas/:id/preguntas` | Genera y guarda un lote nuevo de 3 preguntas (201) | 404 si no existe; 503 si la IA falla |
-| POST | `/api/preguntas/:id/retroalimentacion` | Body `{respuesta, intento}`; devuelve pistas, nunca la respuesta | 400 si la respuesta está vacía (se recorta a 1500 caracteres); 404; 503 si la IA falla |
-| GET | `/api/salud` | Comprobación de estado | — |
+| Método | Ruta                                   | Descripción                                                      | Errores                                                                                |
+| ------ | -------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| GET    | `/api/cursos`                          | Lista de cursos `[{curso, nombre}]`                              | —                                                                                      |
+| GET    | `/api/lecturas?curso=8`                | Título, autor y duración de las lecturas del curso               | 400 si el curso no es 8, 9 o 10                                                        |
+| GET    | `/api/lecturas/:id`                    | Lectura completa + `glosario` + `escenas_ar`                     | 404 si no existe                                                                       |
+| POST   | `/api/lecturas/:id/preguntas`          | Genera y guarda un lote nuevo de 3 preguntas (201)               | 404 si no existe; 503 si la IA falla                                                   |
+| POST   | `/api/preguntas/:id/retroalimentacion` | Body `{respuesta, intento}`; devuelve pistas, nunca la respuesta | 400 si la respuesta está vacía (se recorta a 1500 caracteres); 404; 503 si la IA falla |
+| GET    | `/api/salud`                           | Comprobación de estado                                           | —                                                                                      |

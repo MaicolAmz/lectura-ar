@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "seed": "node src/seed.js",
     "test": "node --test",
-    "probar-ia": "node src/probar-ia.js"
+    "test-ia": "node src/test-ia.js"
   },
   "dependencies": {
     "better-sqlite3": "^12.0.0",
