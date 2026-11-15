@@ -40,3 +40,13 @@ CREATE INDEX IF NOT EXISTS idx_glossary_reading        ON glossary(reading_id);
 CREATE INDEX IF NOT EXISTS idx_ar_scenes_reading       ON ar_scenes(reading_id);
 CREATE INDEX IF NOT EXISTS idx_questions_reading       ON questions(reading_id);
 CREATE INDEX IF NOT EXISTS idx_questions_reading_batch ON questions(reading_id, batch);
+
+CREATE TABLE IF NOT EXISTS profiles (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  token_hash TEXT NOT NULL UNIQUE,
+  nickname   TEXT NOT NULL,
+  avatar     TEXT NOT NULL,
+  grade      INTEGER NOT NULL CHECK (grade IN (8, 9, 10)),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  last_seen  TEXT NOT NULL DEFAULT (datetime('now'))
+);

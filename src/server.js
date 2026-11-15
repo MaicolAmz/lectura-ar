@@ -9,6 +9,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
+app.use('/api/profiles', require('./profiles'));
+
 const GRADES = [8, 9, 10];
 const MAX_ANSWER_LENGTH = 1500;
 
