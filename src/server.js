@@ -9,7 +9,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
-app.use('/api/profiles', require('./profiles'));
+const { router: profilesRouter, optionalProfile } = require('./profiles');
+app.use('/api/profiles', profilesRouter);
 
 const GRADES = [8, 9, 10];
 const MAX_ANSWER_LENGTH = 1500;
@@ -75,7 +76,7 @@ app.post('/api/readings/:id/questions', async (req, res) => {
   res.status(201).json({ batch: generated.batch, origin: generated.origin, questions });
 });
 
-app.post('/api/questions/:id/feedback', async (req, res) => {
+app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
   const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(req.params.id);
   if (!question) return res.status(404).json({ error: 'Pregunta no encontrada.' });
 
@@ -89,6 +90,11 @@ app.post('/api/questions/:id/feedback', async (req, res) => {
   const reading = db.prepare('SELECT * FROM readings WHERE id = ?').get(question.reading_id);
   try {
     const result = await ai.giveFeedback({ reading, question, answer: text, attempt: attemptNumber });
+    if (req.profile) {
+      db.prepare(
+        'INSERT INTO answers (profile_id, question_id, attempt, answer, feedback, origin) VALUES (?, ?, ?, ?, ?, ?)'
+      ).run(req.profile.id, question.id, attemptNumber, text, result.feedback, result.origin);
+    }
     res.json(result);
   } catch (err) {
     console.error('AI giveFeedback failed:', err.message);

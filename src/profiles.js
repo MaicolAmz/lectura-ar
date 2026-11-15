@@ -44,13 +44,22 @@ function validate(body, { partial }) {
   return { value: out };
 }
 
-// Resolves the profile from "Authorization: Bearer <token>".
-function requireProfile(req, res, next) {
+function findProfile(req) {
   const match = /^Bearer (.+)$/.exec(req.get('authorization') || '');
   const profile = match && db.prepare('SELECT * FROM profiles WHERE token_hash = ?').get(hashToken(match[1].trim()));
-  if (!profile) return res.status(401).json({ error: 'Perfil no reconocido. Crea uno nuevo.' });
-  db.prepare("UPDATE profiles SET last_seen = datetime('now') WHERE id = ?").run(profile.id);
-  req.profile = profile;
+  if (profile) db.prepare("UPDATE profiles SET last_seen = datetime('now') WHERE id = ?").run(profile.id);
+  return profile || null;
+}
+
+function requireProfile(req, res, next) {
+  req.profile = findProfile(req);
+  if (!req.profile) return res.status(401).json({ error: 'Perfil no reconocido. Crea uno nuevo.' });
+  next();
+}
+
+// Anonymous use stays allowed: a missing or stale token just means "nothing is saved".
+function optionalProfile(req, res, next) {
+  req.profile = findProfile(req);
   next();
 }
 
@@ -92,4 +101,42 @@ router.delete('/me', requireProfile, (req, res) => {
   res.status(204).end();
 });
 
-module.exports = router;
+router.post('/me/readings/:id/complete', requireProfile, (req, res) => {
+  const reading = db.prepare('SELECT id FROM readings WHERE id = ?').get(req.params.id);
+  if (!reading) return res.status(404).json({ error: 'Lectura no encontrada.' });
+  // Idempotent: completing twice keeps the first completion date.
+  db.prepare('INSERT OR IGNORE INTO reading_progress (profile_id, reading_id) VALUES (?, ?)').run(
+    req.profile.id,
+    reading.id
+  );
+  res.status(204).end();
+});
+
+router.get('/me/progress', requireProfile, (req, res) => {
+  const readings = db
+    .prepare(
+      `SELECT r.id AS reading_id, r.title, r.grade,
+              rp.completed_at IS NOT NULL AS completed,
+              rp.completed_at,
+              COUNT(DISTINCT a.question_id) AS questions_answered,
+              COUNT(a.id) AS attempts,
+              MAX(a.created_at) AS last_activity
+       FROM readings r
+       LEFT JOIN reading_progress rp ON rp.reading_id = r.id AND rp.profile_id = @id
+       LEFT JOIN questions q ON q.reading_id = r.id
+       LEFT JOIN answers a ON a.question_id = q.id AND a.profile_id = @id
+       GROUP BY r.id
+       HAVING completed = 1 OR attempts > 0
+       ORDER BY r.id`
+    )
+    .all({ id: req.profile.id })
+    .map((row) => ({ ...row, completed: Boolean(row.completed) }));
+
+  res.json({
+    completed_readings: readings.filter((r) => r.completed).length,
+    total_attempts: readings.reduce((sum, r) => sum + r.attempts, 0),
+    readings,
+  });
+});
+
+module.exports = { router, optionalProfile };

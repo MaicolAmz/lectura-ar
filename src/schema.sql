@@ -50,3 +50,24 @@ CREATE TABLE IF NOT EXISTS profiles (
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   last_seen  TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS answers (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  profile_id  INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  attempt     INTEGER NOT NULL,
+  answer      TEXT NOT NULL,
+  feedback    TEXT NOT NULL,
+  origin      TEXT NOT NULL,
+  created_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS reading_progress (
+  profile_id   INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  reading_id   INTEGER NOT NULL REFERENCES readings(id) ON DELETE CASCADE,
+  completed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (profile_id, reading_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_answers_profile  ON answers(profile_id);
+CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id);

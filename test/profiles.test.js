@@ -1,11 +1,15 @@
 process.env.DB_PATH = ':memory:';
+process.env.GROQ_API_KEY = ''; // force the offline fallback: no network in tests
 
-const { describe, it } = require('node:test');
+const { describe, it, before } = require('node:test');
 const assert = require('node:assert/strict');
 const request = require('supertest');
 
 const app = require('../src/server');
 const db = require('../src/db');
+const { seedReadings } = require('../src/seed');
+
+before(() => seedReadings());
 
 const valid = { nickname: 'Ana', avatar: 'fox', grade: 8 };
 const create = (body = valid) => request(app).post('/api/profiles').send(body);
@@ -85,5 +89,74 @@ describe('Perfiles sin contraseña', () => {
   it('GET /avatars lista los avatares disponibles', async () => {
     const res = await request(app).get('/api/profiles/avatars');
     assert.ok(res.body.includes('fox'));
+  });
+});
+
+describe('Progreso por perfil', () => {
+  const newQuestion = async (readingId = 1) =>
+    (await request(app).post(`/api/readings/${readingId}/questions`)).body.questions[0];
+  const answer = (question, token, attempt = 1) => {
+    const req = request(app).post(`/api/questions/${question.id}/feedback`);
+    if (token) req.set(auth(token));
+    return req.send({ answer: 'no sé', attempt });
+  };
+
+  it('con perfil, guarda cada intento de respuesta', async () => {
+    const { token } = (await create()).body;
+    const question = await newQuestion();
+    assert.equal((await answer(question, token, 1)).status, 200);
+    assert.equal((await answer(question, token, 2)).status, 200);
+
+    const res = await request(app).get('/api/profiles/me/progress').set(auth(token));
+    assert.equal(res.status, 200);
+    assert.equal(res.body.total_attempts, 2);
+    assert.equal(res.body.readings.length, 1);
+    assert.equal(res.body.readings[0].questions_answered, 1);
+    assert.equal(res.body.readings[0].attempts, 2);
+    assert.equal(res.body.readings[0].completed, false);
+  });
+
+  it('sin perfil o con token falso sigue funcionando y no guarda nada', async () => {
+    const question = await newQuestion();
+    const before = db.prepare('SELECT COUNT(*) AS n FROM answers').get().n;
+    assert.equal((await answer(question)).status, 200);
+    assert.equal((await answer(question, 'falso')).status, 200);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM answers').get().n, before);
+  });
+
+  it('marcar una lectura como completada es idempotente', async () => {
+    const { token } = (await create()).body;
+    const url = '/api/profiles/me/readings/2/complete';
+    assert.equal((await request(app).post(url).set(auth(token))).status, 204);
+    assert.equal((await request(app).post(url).set(auth(token))).status, 204);
+    const res = await request(app).get('/api/profiles/me/progress').set(auth(token));
+    assert.equal(res.body.completed_readings, 1);
+    assert.equal(res.body.readings[0].reading_id, 2);
+    assert.equal(res.body.readings[0].completed, true);
+  });
+
+  it('completar: 404 si la lectura no existe y 401 sin token', async () => {
+    const { token } = (await create()).body;
+    assert.equal((await request(app).post('/api/profiles/me/readings/9999/complete').set(auth(token))).status, 404);
+    assert.equal((await request(app).post('/api/profiles/me/readings/1/complete')).status, 401);
+    assert.equal((await request(app).get('/api/profiles/me/progress')).status, 401);
+  });
+
+  it('el progreso de un perfil no se mezcla con el de otro', async () => {
+    const a = (await create()).body;
+    const b = (await create({ ...valid, nickname: 'Beto' })).body;
+    await answer(await newQuestion(), a.token);
+    const res = await request(app).get('/api/profiles/me/progress').set(auth(b.token));
+    assert.equal(res.body.total_attempts, 0);
+    assert.deepEqual(res.body.readings, []);
+  });
+
+  it('eliminar el perfil borra su progreso', async () => {
+    const { token, profile } = (await create()).body;
+    await answer(await newQuestion(), token);
+    await request(app).post('/api/profiles/me/readings/1/complete').set(auth(token));
+    await request(app).delete('/api/profiles/me').set(auth(token));
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM answers WHERE profile_id = ?').get(profile.id).n, 0);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM reading_progress WHERE profile_id = ?').get(profile.id).n, 0);
   });
 });
