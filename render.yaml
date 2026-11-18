@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: lecturaar
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm run start:render
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GROQ_MODEL
+        sync: false

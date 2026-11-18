@@ -6,6 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "start": "node src/server.js",
+    "start:render": "node src/seed.js && node src/server.js",
     "seed": "node src/seed.js",
     "test": "node --test test/*.test.js",
     "test-ia": "node src/test-ia.js"
