@@ -1,12 +1,74 @@
 const path = require('path');
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const ai = require('./ia');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// Render sits behind a proxy; without this every client shares the proxy's IP for rate limiting.
+app.set('trust proxy', 1);
+app.disable('x-powered-by');
+
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        // model-viewer is loaded from jsDelivr and fetches Draco/KTX2 decoders from gstatic.
+        scriptSrc: ["'self'", 'https://cdn.jsdelivr.net', 'https://www.gstatic.com'],
+        styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+        fontSrc: ["'self'", 'https://fonts.gstatic.com'],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'", 'blob:', 'data:', 'https://cdn.jsdelivr.net', 'https://www.gstatic.com'],
+        workerSrc: ["'self'", 'blob:'],
+        objectSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+  })
+);
+
+// Same-origin by default (the frontend is served from here); set ALLOWED_ORIGIN to open it to another site.
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+if (allowedOrigin) {
+  app.use(cors({ origin: allowedOrigin.split(',').map((o) => o.trim()) }));
+}
+
+app.use(express.json({ limit: '10kb' }));
+
+// Generic cap for the whole API, plus a strict one on the routes that spend AI quota.
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 120,
+  skip: () => process.env.RATE_LIMIT_DISABLED === '1',
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes, intenta de nuevo en un momento.' },
+});
+const aiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  skip: () => process.env.RATE_LIMIT_DISABLED === '1',
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes a la IA, espera un minuto.' },
+});
+const createProfileLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 20,
+  skip: () => process.env.RATE_LIMIT_DISABLED === '1',
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiados perfiles creados desde esta red, intenta más tarde.' },
+});
+app.use('/api', apiLimiter);
+app.post('/api/profiles', createProfileLimiter);
+app.post('/api/readings/:id/questions', aiLimiter);
+app.post('/api/questions/:id/feedback', aiLimiter);
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const { router: profilesRouter, optionalProfile } = require('./profiles');
@@ -112,6 +174,14 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' });
+});
+
+// Malformed JSON and unexpected failures: never leak stack traces to clients.
+app.use((err, req, res, next) => {
+  if (err.type === 'entity.too.large') return res.status(413).json({ error: 'La solicitud es demasiado grande.' });
+  if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'JSON inválido.' });
+  console.error('Unhandled error:', err.message);
+  res.status(500).json({ error: 'Error interno del servidor.' });
 });
 
 if (require.main === module) {

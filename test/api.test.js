@@ -1,3 +1,4 @@
+process.env.RATE_LIMIT_DISABLED = '1'; // tests hit the AI routes far more than the production limit allows
 // API tests (node:test + supertest). Groq is never called: globalThis.fetch is mocked.
 // supertest talks to the app over plain http (not fetch), so the mock does not interfere.
 //

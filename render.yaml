@@ -9,6 +9,10 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
+      - key: NODE_ENV
+        value: production
+      - key: ALLOWED_ORIGIN
+        sync: false
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL

@@ -1,3 +1,4 @@
+process.env.RATE_LIMIT_DISABLED = '1'; // tests hit the AI routes far more than the production limit allows
 process.env.DB_PATH = ':memory:';
 process.env.GROQ_API_KEY = ''; // force the offline fallback: no network in tests
 
