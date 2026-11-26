@@ -128,8 +128,8 @@ describe('Progreso por perfil', () => {
   it('marcar una lectura como completada es idempotente', async () => {
     const { token } = (await create()).body;
     const url = '/api/profiles/me/readings/2/complete';
-    assert.equal((await request(app).post(url).set(auth(token))).status, 204);
-    assert.equal((await request(app).post(url).set(auth(token))).status, 204);
+    assert.equal((await request(app).post(url).set(auth(token))).status, 200);
+    assert.equal((await request(app).post(url).set(auth(token))).status, 200);
     const res = await request(app).get('/api/profiles/me/progress').set(auth(token));
     assert.equal(res.body.completed_readings, 1);
     assert.equal(res.body.readings[0].reading_id, 2);
@@ -171,7 +171,7 @@ describe('La IA conoce el apodo del perfil', () => {
     const question = (await request(app).post('/api/readings/1/questions')).body.questions[0];
     process.env.GROQ_API_KEY = 'clave-de-prueba';
     const fetchMock = mock.method(globalThis, 'fetch', async () =>
-      new Response(JSON.stringify({ choices: [{ message: { content: 'Muy bien. Mira el último párrafo. ¿Qué cambió?' }, finish_reason: 'stop' }] }), {
+      new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ acertada: false, mensaje: 'Mira el último párrafo. ¿Qué cambió?' }) }, finish_reason: 'stop' }] }), {
         status: 200,
         headers: { 'content-type': 'application/json' },
       })

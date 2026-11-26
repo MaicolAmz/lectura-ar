@@ -111,6 +111,13 @@ main:focus, main:focus-visible { outline: none; box-shadow: none; }
 }
 .badge.new { color: var(--primary-text); background: var(--primary-light); }
 
+/* Points */
+.points-chip {
+  display: inline-block; padding: .15rem .65rem; font-size: .85rem; font-weight: 700; border-radius: 999px;
+  color: var(--primary-text); background: var(--accent-light); white-space: nowrap;
+}
+.reward { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: .6rem; }
+
 /* Progress */
 .progress-bar { height: 16px; border-radius: 8px; background: var(--primary-light); overflow: hidden; }
 .progress-bar > div { height: 100%; background: var(--primary); }

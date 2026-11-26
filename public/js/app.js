@@ -64,13 +64,26 @@ function markNav(section) {
   document.getElementById('nav-library').setAttribute('href', `#/grade/${grade}`);
 }
 
+// The total lives in the session so the nav can show it without a request per view.
+const sessionPoints = () => {
+  const { points } = getSession();
+  return Number.isInteger(points) ? points : 0;
+};
+function setPoints(total) {
+  if (Number.isInteger(total) && getSession().token) setSession({ ...getSession(), points: total });
+}
+
 function renderNavProfile() {
   const { profile } = getSession();
   const el = document.getElementById('nav-profile');
   if (profile) {
     const avatar = AVATARS[profile.avatar];
-    el.textContent = `${avatar ? avatar.emoji : '🙂'} ${profile.nickname}`;
-    el.setAttribute('aria-label', `Mi perfil: ${profile.nickname}`);
+    const points = sessionPoints();
+    el.replaceChildren(
+      `${avatar ? avatar.emoji : '🙂'} ${profile.nickname} `,
+      h('span', { class: 'points-chip', 'aria-hidden': 'true' }, `⭐ ${points}`)
+    );
+    el.setAttribute('aria-label', `Mi perfil: ${profile.nickname}, ${points} puntos`);
   } else {
     el.textContent = 'Crear perfil';
     el.removeAttribute('aria-label');
@@ -432,11 +445,21 @@ function mountAssistant(panel, reading, token) {
       try {
         const result = await api.sendFeedback(question.id, answer, attempt);
         if (!isAlive()) return;
+        setPoints(result.total_points);
+        const earned = Number.isInteger(result.points_earned) ? result.points_earned : null;
         // replaceChildren would print a literal "false", so falsy entries are filtered out.
         hint.replaceChildren(
           ...[
+            (result.correct || earned > 0) &&
+              h(
+                'div',
+                { class: 'reward' },
+                result.correct && h('span', { class: 'badge' }, '✓ ¡Respuesta acertada!'),
+                earned > 0 && h('span', { class: 'points-chip' }, `+${earned} puntos`)
+              ),
             h('span', { class: 'hint-label' }, me ? `PISTA PARA ${me.name.toUpperCase()}` : 'PISTA DEL ASISTENTE'),
             result.feedback,
+            !me && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'Crea un perfil para ganar puntos con tus respuestas.'),
             result.origin === 'fallback' && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
           ].filter(Boolean)
         );
@@ -463,10 +486,23 @@ function mountAssistant(panel, reading, token) {
 
   function finish() {
     markCompleted(id);
+    const bonus = h('div', { 'aria-live': 'polite' });
     // Best effort: the local mark already counts, and the next sync retries the upload.
-    if (getSession().token) api.completeReading(id).catch(() => {});
+    if (getSession().token) {
+      api
+        .completeReading(id)
+        .then((result) => {
+          if (!result || !isAlive()) return;
+          setPoints(result.total_points);
+          if (result.points_earned > 0) {
+            bonus.replaceChildren(h('span', { class: 'points-chip' }, `+${result.points_earned} puntos por completar la lectura`));
+          }
+        })
+        .catch(() => {});
+    }
     paint(
       h('span', { class: 'badge', style: 'align-self:flex-start' }, '✓ Completada'),
+      bonus,
       h('h2', { style: 'margin:0' }, me ? `¡Muy bien, ${me.name}! Terminaste los ejercicios` : '¡Muy bien! Terminaste los ejercicios'),
       h('p', { style: 'margin:0' }, me ? 'Esta lectura quedó guardada en tu progreso.' : 'Esta lectura quedó marcada como completada.'),
       h(
@@ -562,6 +598,7 @@ async function progressView(token) {
     me ? api.progress().catch(() => null) : null,
   ]);
   if (token !== currentView) return;
+  if (summary) setPoints(summary.total_points);
 
   const completed = results.flatMap(({ grade, readings }) => (readings || []).filter((r) => isCompleted(r.id)).map((r) => ({ ...r, grade })));
   const last = getLast();
@@ -576,6 +613,7 @@ async function progressView(token) {
         'div',
         { class: 'stats' },
         [
+          [summary.total_points ?? 0, 'puntos ganados'],
           [summary.completed_readings, 'lecturas completadas'],
           [summary.readings.reduce((sum, r) => sum + r.questions_answered, 0), 'preguntas trabajadas'],
           [summary.total_attempts, 'respuestas enviadas'],
@@ -733,7 +771,7 @@ function profileView() {
       submitLabel: 'Guardar cambios',
       onSubmit: async (data, status) => {
         const updated = await api.updateProfile(data);
-        setSession({ token: getSession().token, profile: updated });
+        setSession({ ...getSession(), profile: updated });
         status.replaceChildren(h('p', { class: 'ok-note', role: 'status' }, '✓ Cambios guardados'));
       },
     })),
@@ -768,7 +806,7 @@ async function syncProfile() {
   if (!getSession().token) return;
   try {
     const [profile, progress] = await Promise.all([api.me(), api.progress()]);
-    setSession({ token: getSession().token, profile });
+    setSession({ token: getSession().token, profile, points: progress.total_points });
     const doneIds = progress.readings.filter((r) => r.completed).map((r) => r.reading_id);
     if (mergeCompleted(doneIds)) route();
   } catch {

@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const express = require('express');
 const db = require('./db');
+const points = require('./points');
 
 const GRADES = [8, 9, 10];
 const AVATARS = ['fox', 'bird', 'fish', 'tree', 'lantern', 'canoe', 'volcano', 'stone', 'mangrove'];
@@ -109,7 +110,15 @@ router.post('/me/readings/:id/complete', requireProfile, (req, res) => {
     req.profile.id,
     reading.id
   );
-  res.status(204).end();
+  // The bonus needs at least one answer on the reading, so calling this endpoint alone earns nothing.
+  const practiced = db
+    .prepare(
+      `SELECT 1 FROM answers a JOIN questions q ON q.id = a.question_id
+       WHERE a.profile_id = ? AND q.reading_id = ? LIMIT 1`
+    )
+    .get(req.profile.id, reading.id);
+  const earned = practiced ? points.awardReading(req.profile.id, reading.id) : 0;
+  res.json({ points_earned: earned, total_points: points.totalPoints(req.profile.id) });
 });
 
 router.get('/me/progress', requireProfile, (req, res) => {
@@ -135,6 +144,7 @@ router.get('/me/progress', requireProfile, (req, res) => {
   res.json({
     completed_readings: readings.filter((r) => r.completed).length,
     total_attempts: readings.reduce((sum, r) => sum + r.attempts, 0),
+    total_points: points.totalPoints(req.profile.id),
     readings,
   });
 });

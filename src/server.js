@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const ai = require('./ia');
+const points = require('./points');
 
 const app = express();
 
@@ -147,7 +148,12 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
     return res.status(400).json({ error: 'La respuesta no puede estar vacía.' });
   }
   const text = answer.trim().slice(0, MAX_ANSWER_LENGTH);
-  const attemptNumber = Number.isInteger(attempt) && attempt >= 1 ? attempt : 1;
+  // With a profile the server counts attempts itself: the client's number scores points otherwise.
+  const attemptNumber = req.profile
+    ? points.previousAttempts(req.profile.id, question.id) + 1
+    : Number.isInteger(attempt) && attempt >= 1
+      ? attempt
+      : 1;
 
   const reading = db.prepare('SELECT * FROM readings WHERE id = ?').get(question.reading_id);
   try {
@@ -162,6 +168,15 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
       db.prepare(
         'INSERT INTO answers (profile_id, question_id, attempt, answer, feedback, origin) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(req.profile.id, question.id, attemptNumber, text, result.feedback, result.origin);
+      result.points_earned = points.awardAnswer({
+        profileId: req.profile.id,
+        questionId: question.id,
+        attempt: attemptNumber,
+        origin: result.origin,
+        answer: text,
+        correct: result.correct,
+      });
+      result.total_points = points.totalPoints(req.profile.id);
     }
     res.json(result);
   } catch (err) {

@@ -69,5 +69,16 @@ CREATE TABLE IF NOT EXISTS reading_progress (
   PRIMARY KEY (profile_id, reading_id)
 );
 
+-- Points ledger: one row per (profile, kind, ref), so each question or reading pays out once.
+-- kind 'question' -> ref_id is a question id; kind 'reading' -> ref_id is a reading id.
+CREATE TABLE IF NOT EXISTS points (
+  profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  kind       TEXT NOT NULL CHECK (kind IN ('question', 'reading')),
+  ref_id     INTEGER NOT NULL,
+  points     INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (profile_id, kind, ref_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_answers_profile  ON answers(profile_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id);
