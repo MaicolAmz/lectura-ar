@@ -32,7 +32,11 @@ CREATE TABLE IF NOT EXISTS questions (
   statement  TEXT NOT NULL,
   base_hint  TEXT NOT NULL,
   origin     TEXT NOT NULL DEFAULT 'ai' CHECK (origin IN ('ai', 'fallback')),
-  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Multiple choice (NULL when the question is open-answer only). options is a JSON array;
+  -- correct_option never leaves the server.
+  options        TEXT,
+  correct_option INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_readings_grade          ON readings(grade);

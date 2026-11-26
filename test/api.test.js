@@ -37,6 +37,8 @@ const validQuestions = (count = 3) => {
       type: i === 0 ? 'author_intent' : 'inference',
       statement: `¿Qué se puede deducir de la escena número ${i + 1} del texto en el intento ${batchNumber}?`,
       base_hint: `Relee el párrafo ${i + 1} y fíjate en los verbos.`,
+      options: ['Correcta', 'Distractor uno', 'Distractor dos', 'Distractor tres'].map((o) => `${o} ${batchNumber}-${i}`),
+      correct_option: 0,
     })),
   };
 };
@@ -478,5 +480,100 @@ describe('Sistema de puntos', () => {
 
     const progress = await request(app).get('/api/profiles/me/progress').set(auth(token));
     assert.equal(progress.body.total_points, 23);
+  });
+});
+/* ---------- multiple choice ---------- */
+
+describe('Opción múltiple', () => {
+  const db = require('../src/db');
+  const auth = (token) => ({ Authorization: `Bearer ${token}` });
+  const correctOf = (question) => db.prepare('SELECT correct_option FROM questions WHERE id = ?').get(question.id).correct_option;
+  const choose = (question, option, token) => {
+    const req = request(app).post(`/api/questions/${question.id}/choice`);
+    if (token) req.set(auth(token));
+    return req.send({ option });
+  };
+  async function aiQuestion(batch = validQuestions()) {
+    mockGroq(groqResponse(JSON.stringify(batch)));
+    const question = (await newBatch(7)).questions[0];
+    mock.restoreAll();
+    return question;
+  }
+
+  it('las preguntas de IA traen 4 opciones y nunca la correcta', async () => {
+    const question = await aiQuestion();
+    assert.equal(question.options.length, 4);
+    assert.equal(question.correct_option, undefined);
+    // The stored index still points at the option the model marked as right (after shuffling).
+    assert.match(question.options[correctOf(question)], /^Correcta /);
+  });
+
+  it('opciones inválidas: la pregunta queda solo abierta, sin descartar el lote', async () => {
+    const batch = validQuestions();
+    batch.questions[0].options = ['Igual', 'igual', 'Otra', 'Más'];
+    batch.questions[1].correct_option = 7;
+    mockGroq(groqResponse(JSON.stringify(batch)));
+    const res = await newBatch(7);
+    assert.equal(res.origin, 'ai');
+    assert.equal(res.questions[0].options, null);
+    assert.equal(res.questions[1].options, null);
+    assert.equal(res.questions[2].options.length, 4);
+    const rejected = await choose(res.questions[0], 0);
+    assert.equal(rejected.status, 400);
+  });
+
+  it('las preguntas de respaldo no tienen opciones', async () => {
+    mockGroq(new Response('{}', { status: 500 }));
+    const batch = await newBatch(7);
+    assert.equal(batch.origin, 'fallback');
+    assert.ok(batch.questions.every((q) => q.options === null));
+  });
+
+  it('elegir bien o mal se califica sin llamar a la IA', async () => {
+    const question = await aiQuestion();
+    const fetchMock = mockGroq(groqResponse('x'));
+    const right = correctOf(question);
+    const wrong = (right + 1) % 4;
+    const bad = await choose(question, wrong);
+    assert.equal(bad.status, 200);
+    assert.equal(bad.body.correct, false);
+    assert.ok(bad.body.feedback.includes(question.base_hint));
+    assert.ok(!bad.body.feedback.includes(question.options[right]), 'no revela la opción correcta');
+    const good = await choose(question, right);
+    assert.equal(good.body.correct, true);
+    assert.equal(fetchMock.mock.callCount(), 0);
+  });
+
+  it('valida la opción enviada', async () => {
+    const question = await aiQuestion();
+    for (const option of [-1, 4, '1', null, 1.5]) {
+      assert.equal((await choose(question, option)).status, 400, String(option));
+    }
+    assert.equal((await choose({ id: 999999 }, 0)).status, 404);
+  });
+
+  it('puntos: +5 al primer intento, +2 al segundo, 0 después; y vale menos que escribir', async () => {
+    const token = (await request(app).post('/api/profiles').send({ nickname: 'Ana', avatar: 'fox', grade: 8 })).body.token;
+    const q1 = await aiQuestion();
+    const first = await choose(q1, correctOf(q1), token);
+    assert.equal(first.body.points_earned, 5);
+    assert.equal((await choose(q1, correctOf(q1), token)).body.points_earned, 0);
+
+    const q2 = await aiQuestion();
+    const wrong = (correctOf(q2) + 1) % 4;
+    assert.equal((await choose(q2, wrong, token)).body.points_earned, 0);
+    const second = await choose(q2, correctOf(q2), token);
+    assert.equal(second.body.attempt, 2);
+    assert.equal(second.body.points_earned, 2);
+
+    // Writing a correct answer afterwards upgrades the question to the written value (10), not 10 + 5.
+    mockGroq(groqResponse(feedbackJson('¡Muy bien! Justifícalo con una frase del texto.', true)));
+    const written = await request(app)
+      .post(`/api/questions/${q1.id}/feedback`)
+      .set(auth(token))
+      .send({ answer: 'Creo que el personaje actúa así porque tiene miedo de perderlo todo.' });
+    assert.equal(written.body.attempt, 1, 'las elecciones no cuentan como intentos escritos');
+    assert.equal(written.body.points_earned, 5);
+    assert.equal(written.body.total_points, 12);
   });
 });

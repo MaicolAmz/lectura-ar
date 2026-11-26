@@ -126,13 +126,24 @@ app.post('/api/readings/:id/questions', async (req, res) => {
   }
 
   const insert = db.prepare(
-    `INSERT INTO questions (reading_id, batch, type, statement, base_hint, origin)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO questions (reading_id, batch, type, statement, base_hint, origin, options, correct_option)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   );
   const save = db.transaction(() =>
     generated.questions.map((q) => {
-      const info = insert.run(reading.id, generated.batch, q.type, q.statement, q.base_hint, generated.origin);
-      return { id: Number(info.lastInsertRowid), type: q.type, statement: q.statement, base_hint: q.base_hint };
+      const options = q.options || null;
+      const info = insert.run(
+        reading.id,
+        generated.batch,
+        q.type,
+        q.statement,
+        q.base_hint,
+        generated.origin,
+        options && JSON.stringify(options),
+        options ? q.correct_option : null
+      );
+      // correct_option is left out on purpose: the client must not know the answer.
+      return { id: Number(info.lastInsertRowid), type: q.type, statement: q.statement, base_hint: q.base_hint, options };
     })
   );
   const questions = save();
@@ -185,6 +196,36 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
       error: 'No pudimos darte retroalimentación ahora mismo, puedes seguir leyendo.',
     });
   }
+});
+
+// Multiple choice: graded against the stored option, no AI call involved.
+app.post('/api/questions/:id/choice', optionalProfile, (req, res) => {
+  const question = db.prepare('SELECT * FROM questions WHERE id = ?').get(req.params.id);
+  if (!question) return res.status(404).json({ error: 'Pregunta no encontrada.' });
+  if (question.options == null || question.correct_option == null) {
+    return res.status(400).json({ error: 'Esta pregunta no tiene opciones.' });
+  }
+  const options = JSON.parse(question.options);
+  const { option, attempt } = req.body || {};
+  if (!Number.isInteger(option) || option < 0 || option >= options.length) {
+    return res.status(400).json({ error: 'Elige una de las opciones.' });
+  }
+  const attemptNumber = req.profile
+    ? points.previousChoices(req.profile.id, question.id) + 1
+    : Number.isInteger(attempt) && attempt >= 1
+      ? attempt
+      : 1;
+  const correct = option === question.correct_option;
+  const result = { origin: 'choice', correct, feedback: ai.choiceFeedback({ question, correct, attempt: attemptNumber }), attempt: attemptNumber };
+
+  if (req.profile) {
+    db.prepare(
+      'INSERT INTO answers (profile_id, question_id, attempt, answer, feedback, origin) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.profile.id, question.id, attemptNumber, options[option], result.feedback, 'choice');
+    result.points_earned = points.awardChoice({ profileId: req.profile.id, questionId: question.id, attempt: attemptNumber, correct });
+    result.total_points = points.totalPoints(req.profile.id);
+  }
+  res.json(result);
 });
 
 app.get('/api/health', (req, res) => {

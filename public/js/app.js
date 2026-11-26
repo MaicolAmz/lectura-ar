@@ -408,70 +408,132 @@ function mountAssistant(panel, reading, token) {
 
   function showQuestion(questions, index, isFallback = false) {
     const question = questions[index];
+    const hasOptions = Array.isArray(question.options) && question.options.length > 0;
+    let mode = 'write';
     let attempt = 1;
+    let choiceAttempt = 1;
+    let choiceSolved = false;
     let sending = false;
     const isLast = index === questions.length - 1;
 
     const textarea = h('textarea', { id: 'answer', maxlength: '1500', rows: '5' });
+    const writeArea = h('div', {}, h('label', { for: 'answer' }, me ? `${me.emoji} Respuesta de ${me.name}` : 'Tu respuesta'), textarea);
+    const radios = hasOptions
+      ? question.options.map((text, i) => h('input', { type: 'radio', name: `choice-${question.id}`, value: String(i), id: `choice-${question.id}-${i}` }))
+      : [];
+    const choiceArea = hasOptions
+      ? h(
+          'fieldset',
+          { class: 'choices', hidden: true },
+          h('legend', {}, me ? `${me.emoji} Elige la respuesta, ${me.name}` : 'Elige la respuesta'),
+          question.options.map((text, i) => h('label', { class: 'choice', for: radios[i].id }, radios[i], h('span', {}, text)))
+        )
+      : null;
     const hint = h('div', { class: 'hint', role: 'status', 'aria-live': 'polite' });
     const errorArea = h('div', { 'aria-live': 'polite' });
     const submit = h('button', { type: 'submit', class: 'button' }, 'Enviar respuesta');
     const next = h('button', { type: 'button', class: 'button secondary' }, isLast ? 'Terminar' : 'Siguiente pregunta');
     next.addEventListener('click', () => (isLast ? finish() : showQuestion(questions, index + 1, isFallback)));
 
+    const submitLabel = () => {
+      if (mode === 'choice') return choiceAttempt > 1 ? 'Comprobar otra opción' : 'Comprobar';
+      return attempt > 1 ? 'Reenviar respuesta corregida' : 'Enviar respuesta';
+    };
+
+    const modeButtons = {};
+    function setMode(value) {
+      mode = value;
+      writeArea.hidden = mode !== 'write';
+      if (choiceArea) choiceArea.hidden = mode !== 'choice';
+      for (const [key, button] of Object.entries(modeButtons)) button.setAttribute('aria-pressed', String(key === mode));
+      submit.textContent = submitLabel();
+      submit.disabled = mode === 'choice' && choiceSolved;
+      errorArea.replaceChildren();
+    }
+    const modeSwitch =
+      hasOptions &&
+      h(
+        'div',
+        { class: 'mode-switch', role: 'group', 'aria-label': 'Forma de responder' },
+        (modeButtons.write = h('button', { type: 'button', onclick: () => setMode('write') }, '✍️ Escribir mi respuesta')),
+        (modeButtons.choice = h('button', { type: 'button', onclick: () => setMode('choice') }, '🔘 Ver opciones'))
+      );
+
     const form = h(
       'form',
       { novalidate: true, style: 'display:flex;flex-direction:column;gap:1rem' },
-      h('div', {}, h('label', { for: 'answer' }, me ? `${me.emoji} Respuesta de ${me.name}` : 'Tu respuesta'), textarea),
+      modeSwitch,
+      writeArea,
+      choiceArea,
       errorArea,
       h('div', { class: 'actions', style: 'margin:0' }, submit, next),
       hint,
       h('p', { class: 'note', style: 'margin:0' }, 'El asistente te da pistas, no la respuesta. Tú descubres el significado.')
     );
 
+    function showResult(result) {
+      setPoints(result.total_points);
+      const earned = Number.isInteger(result.points_earned) ? result.points_earned : null;
+      // replaceChildren would print a literal "false", so falsy entries are filtered out.
+      hint.replaceChildren(
+        ...[
+          (result.correct || earned > 0) &&
+            h(
+              'div',
+              { class: 'reward' },
+              result.correct && h('span', { class: 'badge' }, '✓ ¡Respuesta acertada!'),
+              earned > 0 && h('span', { class: 'points-chip' }, `+${earned} puntos`)
+            ),
+          h('span', { class: 'hint-label' }, me ? `PISTA PARA ${me.name.toUpperCase()}` : 'PISTA DEL ASISTENTE'),
+          result.feedback,
+          !me && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'Crea un perfil para ganar puntos con tus respuestas.'),
+          result.origin === 'fallback' && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
+        ].filter(Boolean)
+      );
+    }
+
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (sending) return;
+      const choosing = mode === 'choice';
+      const picked = radios.find((r) => r.checked);
       const answer = textarea.value.trim();
-      if (!answer) {
-        errorArea.replaceChildren(h('p', { class: 'notice', role: 'alert' }, 'Escribe tu respuesta antes de enviarla.'));
-        textarea.focus();
+      if (choosing ? !picked : !answer) {
+        errorArea.replaceChildren(h('p', { class: 'notice', role: 'alert' }, choosing ? 'Elige una opción antes de comprobar.' : 'Escribe tu respuesta antes de enviarla.'));
+        (choosing ? radios.find((r) => !r.disabled) : textarea).focus();
         return;
       }
       sending = true;
       submit.disabled = true;
       errorArea.replaceChildren();
-      hint.replaceChildren(loadingIndicator(me ? `Pensando una pista para ${me.name}…` : 'Pensando una pista…'));
+      hint.replaceChildren(loadingIndicator(choosing ? 'Revisando tu elección…' : me ? `Pensando una pista para ${me.name}…` : 'Pensando una pista…'));
       try {
-        const result = await api.sendFeedback(question.id, answer, attempt);
+        const result = choosing
+          ? await api.sendChoice(question.id, Number(picked.value), choiceAttempt)
+          : await api.sendFeedback(question.id, answer, attempt);
         if (!isAlive()) return;
-        setPoints(result.total_points);
-        const earned = Number.isInteger(result.points_earned) ? result.points_earned : null;
-        // replaceChildren would print a literal "false", so falsy entries are filtered out.
-        hint.replaceChildren(
-          ...[
-            (result.correct || earned > 0) &&
-              h(
-                'div',
-                { class: 'reward' },
-                result.correct && h('span', { class: 'badge' }, '✓ ¡Respuesta acertada!'),
-                earned > 0 && h('span', { class: 'points-chip' }, `+${earned} puntos`)
-              ),
-            h('span', { class: 'hint-label' }, me ? `PISTA PARA ${me.name.toUpperCase()}` : 'PISTA DEL ASISTENTE'),
-            result.feedback,
-            !me && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'Crea un perfil para ganar puntos con tus respuestas.'),
-            result.origin === 'fallback' && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
-          ].filter(Boolean)
-        );
-        attempt += 1;
-        submit.textContent = 'Reenviar respuesta corregida';
+        showResult(result);
+        if (choosing) {
+          choiceAttempt += 1;
+          if (result.correct) {
+            choiceSolved = true;
+            radios.forEach((r) => (r.disabled = true));
+          } else {
+            // A wrong pick cannot be right next time: grey it out.
+            picked.checked = false;
+            picked.disabled = true;
+          }
+        } else {
+          attempt += 1;
+        }
       } catch (err) {
         if (!isAlive()) return;
         hint.replaceChildren();
         errorArea.replaceChildren(apiErrorNotice(err, { retry: () => form.requestSubmit() }));
       } finally {
         sending = false;
-        submit.disabled = false;
+        submit.textContent = submitLabel();
+        submit.disabled = mode === 'choice' && choiceSolved;
       }
     });
 
@@ -481,6 +543,7 @@ function mountAssistant(panel, reading, token) {
       h('p', { class: 'ai-bubble' }, question.statement),
       form
     );
+    if (hasOptions) setMode('write');
     textarea.focus({ preventScroll: true });
   }
 

@@ -52,6 +52,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ answer, attempt }),
     }),
+  sendChoice: (questionId, option, attempt) =>
+    request(`/api/questions/${encodeURIComponent(questionId)}/choice`, {
+      method: 'POST',
+      body: JSON.stringify({ option, attempt }),
+    }),
   createProfile: (data) => request('/api/profiles', { method: 'POST', body: JSON.stringify(data) }),
   me: () => request('/api/profiles/me'),
   updateProfile: (data) => request('/api/profiles/me', { method: 'PATCH', body: JSON.stringify(data) }),

@@ -89,8 +89,9 @@ NIVEL: las preguntas deben ser FÁCILES y accesibles para un estudiante promedio
 - Evita términos técnicos de literatura (narrador, recurso, simbolismo, metáfora) y preguntas con varias partes.
 Usa contenido adecuado para menores.
 Para cada pregunta escribe "base_hint": una orientación concreta que indique en qué parte del texto mirar (por ejemplo, "en el párrafo donde..."), SIN revelar la respuesta.
+Para cada pregunta escribe también "options": EXACTAMENTE 4 respuestas posibles, breves (máximo 20 palabras cada una) y distintas entre sí. Solo UNA es correcta según el texto; las otras 3 deben sonar razonables pero ser claramente incorrectas para quien leyó con atención. Indica en "correct_option" la posición de la correcta (0, 1, 2 o 3).
 Responde solo con un objeto JSON con este formato exacto, sin texto adicional:
-{"questions":[{"type":"inference|author_intent","statement":"...","base_hint":"..."}]}`;
+{"questions":[{"type":"inference|author_intent","statement":"...","base_hint":"...","options":["...","...","...","..."],"correct_option":0}]}`;
 
 const QUESTION_TYPES = ['inference', 'author_intent'];
 // Each question gets its own random angle, so "repeat exercises" asks about different
@@ -112,6 +113,22 @@ const isTextOfLength = (value, min, max) => typeof value === 'string' && value.t
 // Case/punctuation-insensitive form, to compare questions.
 const normalize = (text) => text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
+const OPTION_COUNT = 4;
+
+// Multiple choice is an extra: a question with bad options keeps its open form and just
+// loses the choice mode, instead of sending the whole batch to the fallback.
+// Options are shuffled because models tend to put the right answer first.
+function cleanOptions(q) {
+  const { options, correct_option: correct } = q;
+  if (!Array.isArray(options) || options.length !== OPTION_COUNT) return null;
+  if (!Number.isInteger(correct) || correct < 0 || correct >= OPTION_COUNT) return null;
+  if (!options.every((o) => isTextOfLength(o, 1, 200))) return null;
+  const trimmed = options.map((o) => o.trim());
+  if (new Set(trimmed.map(normalize)).size !== OPTION_COUNT) return null;
+  const order = shuffle(trimmed.map((text, i) => ({ text, right: i === correct })));
+  return { options: order.map((o) => o.text), correct_option: order.findIndex((o) => o.right) };
+}
+
 // Returns exactly 3 cleaned questions (extras are dropped), or null if the output
 // does not meet the contract. Both question types must be present.
 // `previous`: a question identical to one the student already saw invalidates the batch
@@ -123,7 +140,8 @@ function validateQuestions(output, previous = []) {
   for (const q of list.slice(0, 3)) {
     if (!q || !QUESTION_TYPES.includes(q.type)) return null;
     if (!isTextOfLength(q.statement, 15, 400) || !isTextOfLength(q.base_hint, 10, 300)) return null;
-    clean.push({ type: q.type, statement: q.statement.trim(), base_hint: q.base_hint.trim() });
+    const choice = cleanOptions(q) || { options: null, correct_option: null };
+    clean.push({ type: q.type, statement: q.statement.trim(), base_hint: q.base_hint.trim(), ...choice });
   }
   if (!QUESTION_TYPES.every((type) => clean.some((q) => q.type === type))) return null;
   const seen = new Set(previous.map(normalize));
@@ -154,7 +172,8 @@ async function generateQuestions(reading, { previous = [] } = {}) {
         const content = await callGroq({
           system: QUESTIONS_SYSTEM_PROMPT,
           user: buildQuestionsPrompt(reading, previous, focusAreas, correction),
-          maxTokens: 900,
+          // Room for 3 x 4 options on top of the hidden reasoning (cut-off output is discarded).
+          maxTokens: 1600,
           temperature: 0.7,
           json: true,
           deadline,
@@ -321,7 +340,14 @@ function buildFallbackQuestions(reading, { previous = [] } = {}) {
   return {
     batch: randomUUID(),
     origin: 'fallback',
-    questions: chosen.map((t) => ({ type: t.type, statement: t.statement(reading), base_hint: t.base_hint })),
+    // Generic templates cannot have reading-specific options: open answer only.
+    questions: chosen.map((t) => ({
+      type: t.type,
+      statement: t.statement(reading),
+      base_hint: t.base_hint,
+      options: null,
+      correct_option: null,
+    })),
   };
 }
 
@@ -362,4 +388,12 @@ function fallbackFeedback({ reading, question, answer, attempt }) {
   };
 }
 
-module.exports = { generateQuestions, giveFeedback, AI_TIMEOUT_MS };
+// Multiple choice is graded locally: the right option is known, so no model call is needed.
+// A wrong pick never reveals the right option; it only points back to the text.
+function choiceFeedback({ question, correct, attempt }) {
+  if (correct) return '¡Correcto! Ahora intenta explicar con tus palabras por qué esa es la respuesta, usando una frase del texto.';
+  if (attempt === 1) return `Esa no es. Pista: ${question.base_hint}`;
+  return 'Todavía no. Relee el fragmento con calma y descarta las opciones que el texto contradice.';
+}
+
+module.exports = { generateQuestions, giveFeedback, choiceFeedback, AI_TIMEOUT_MS };

@@ -5,6 +5,8 @@ const POINTS = {
   // Correct answer by attempt number (counted by the server, never trusted from the client).
   correct: [10, 5, 2],
   readingCompleted: 20,
+  // Multiple choice is easier than writing: worth less, and nothing for a wrong pick.
+  choiceCorrect: [5, 2],
 };
 // Shorter answers get a canned "too short" reply and earn nothing, so "no sé" cannot farm points.
 const MIN_ANSWER_LENGTH = 15;
@@ -24,11 +26,15 @@ const previousAttempts = (profileId, questionId) =>
 const questionPoints = ({ correct, attempt }) =>
   correct ? POINTS.correct[Math.min(attempt, POINTS.correct.length) - 1] : POINTS.answered;
 
-// Returns how many points this answer added. A question keeps its best score: answering it
-// (+3) and later getting it right upgrades the row to the correct value instead of adding up.
-function awardAnswer({ profileId, questionId, attempt, origin, answer, correct }) {
-  if (!['ai', 'fallback'].includes(origin) || answer.length < MIN_ANSWER_LENGTH) return 0;
-  const value = questionPoints({ correct: Boolean(correct), attempt });
+const previousChoices = (profileId, questionId) =>
+  db
+    .prepare("SELECT COUNT(*) AS n FROM answers WHERE profile_id = ? AND question_id = ? AND origin = 'choice'")
+    .get(profileId, questionId).n;
+
+// Returns how many points were added. A question keeps its best score across written and
+// multiple-choice answers: a better result upgrades the row instead of adding up.
+function upgradeQuestion(profileId, questionId, value) {
+  if (value <= 0) return 0;
   const award = db.transaction(() => {
     const before = db
       .prepare("SELECT points FROM points WHERE profile_id = ? AND kind = 'question' AND ref_id = ?")
@@ -44,6 +50,16 @@ function awardAnswer({ profileId, questionId, attempt, origin, answer, correct }
   return award();
 }
 
+function awardAnswer({ profileId, questionId, attempt, origin, answer, correct }) {
+  if (!['ai', 'fallback'].includes(origin) || answer.length < MIN_ANSWER_LENGTH) return 0;
+  return upgradeQuestion(profileId, questionId, questionPoints({ correct: Boolean(correct), attempt }));
+}
+
+function awardChoice({ profileId, questionId, attempt, correct }) {
+  const value = correct ? POINTS.choiceCorrect[attempt - 1] || 0 : 0;
+  return upgradeQuestion(profileId, questionId, value);
+}
+
 function awardReading(profileId, readingId) {
   const info = db
     .prepare("INSERT OR IGNORE INTO points (profile_id, kind, ref_id, points) VALUES (?, 'reading', ?, ?)")
@@ -51,4 +67,4 @@ function awardReading(profileId, readingId) {
   return info.changes === 1 ? POINTS.readingCompleted : 0;
 }
 
-module.exports = { POINTS, totalPoints, previousAttempts, awardAnswer, awardReading };
+module.exports = { POINTS, totalPoints, previousAttempts, previousChoices, awardAnswer, awardChoice, awardReading };
