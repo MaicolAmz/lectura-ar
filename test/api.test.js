@@ -474,12 +474,15 @@ describe('Sistema de puntos', () => {
     await answer(await newQuestion(1), token);
     const done = await request(app).post(url(1)).set(auth(token));
     assert.equal(done.body.points_earned, 20);
-    assert.equal(done.body.total_points, 23);
+    // 3 (answer) + 20 (reading) + 5 (badge "Primera lectura").
+    assert.deepEqual(done.body.badges_earned.map((b) => b.id), [1]);
+    assert.equal(done.body.total_points, 28);
     const twice = await request(app).post(url(1)).set(auth(token));
     assert.equal(twice.body.points_earned, 0);
+    assert.deepEqual(twice.body.badges_earned, []);
 
     const progress = await request(app).get('/api/profiles/me/progress').set(auth(token));
-    assert.equal(progress.body.total_points, 23);
+    assert.equal(progress.body.total_points, 28);
   });
 });
 /* ---------- multiple choice ---------- */

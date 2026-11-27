@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS ar_scenes (
   name        TEXT NOT NULL,
   model_url   TEXT NOT NULL,
   description TEXT NOT NULL,
-  scale       REAL NOT NULL DEFAULT 1.0
+  scale       REAL NOT NULL DEFAULT 1.0,
+  -- "AR hunt" game: this word is blanked out of paragraph hunt_paragraph (0-based) as the clue.
+  hunt_paragraph INTEGER,
+  hunt_word      TEXT
 );
 
 CREATE TABLE IF NOT EXISTS questions (
@@ -76,16 +79,51 @@ CREATE TABLE IF NOT EXISTS reading_progress (
   PRIMARY KEY (profile_id, reading_id)
 );
 
--- Points ledger: one row per (profile, kind, ref), so each question or reading pays out once.
--- kind 'question' -> ref_id is a question id; kind 'reading' -> ref_id is a reading id.
+-- Points ledger: one row per (profile, kind, ref), so each item pays out once.
+-- kind 'question' -> ref_id is a question id; 'reading', 'glossary', 'order' and 'hunt' -> a reading id;
+-- 'badge' -> a badge id from src/achievements.js.
+-- src/db.js rebuilds older databases whose CHECK predates the game kinds.
 CREATE TABLE IF NOT EXISTS points (
   profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  kind       TEXT NOT NULL CHECK (kind IN ('question', 'reading')),
+  kind       TEXT NOT NULL CHECK (kind IN ('question', 'reading', 'glossary', 'order', 'hunt', 'badge')),
   ref_id     INTEGER NOT NULL,
   points     INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (profile_id, kind, ref_id)
 );
+
+-- Days (Ecuador time) with any activity, for streaks. Only tied to the profile, so
+-- re-seeding readings (which cascades to questions and answers) does not break a streak.
+CREATE TABLE IF NOT EXISTS activity_days (
+  profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  day        TEXT NOT NULL,
+  PRIMARY KEY (profile_id, day)
+);
+
+-- Every submission to a game, used to count attempts. reading_id/ref_id are plain numbers on
+-- purpose (same reason as activity_days). ref_id: story_orders.id for 'order', the reading otherwise.
+CREATE TABLE IF NOT EXISTS game_plays (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  profile_id INTEGER NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  game       TEXT NOT NULL CHECK (game IN ('glossary', 'order', 'hunt')),
+  reading_id INTEGER NOT NULL,
+  ref_id     INTEGER NOT NULL,
+  correct    INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- "Order the story" rounds. events is the shuffled list shown to the student; solution
+-- (indexes into events, in story order) never leaves the server.
+CREATE TABLE IF NOT EXISTS story_orders (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  reading_id INTEGER NOT NULL REFERENCES readings(id) ON DELETE CASCADE,
+  events     TEXT NOT NULL,
+  solution   TEXT NOT NULL,
+  origin     TEXT NOT NULL CHECK (origin IN ('ai', 'fallback')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_plays_profile ON game_plays(profile_id, game, ref_id);
 
 CREATE INDEX IF NOT EXISTS idx_answers_profile  ON answers(profile_id);
 CREATE INDEX IF NOT EXISTS idx_answers_question ON answers(question_id);

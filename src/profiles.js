@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const express = require('express');
 const db = require('./db');
 const points = require('./points');
+const achievements = require('./achievements');
 
 const GRADES = [8, 9, 10];
 const AVATARS = ['fox', 'bird', 'fish', 'tree', 'lantern', 'canoe', 'volcano', 'stone', 'mangrove'];
@@ -145,7 +146,7 @@ router.post('/me/readings/:id/complete', requireProfile, (req, res) => {
     )
     .get(req.profile.id, reading.id);
   const earned = practiced ? points.awardReading(req.profile.id, reading.id) : 0;
-  res.json({ points_earned: earned, total_points: points.totalPoints(req.profile.id) });
+  res.json(achievements.reward(req.profile.id, earned));
 });
 
 router.get('/me/progress', requireProfile, (req, res) => {
@@ -172,8 +173,10 @@ router.get('/me/progress', requireProfile, (req, res) => {
     completed_readings: readings.filter((r) => r.completed).length,
     total_attempts: readings.reduce((sum, r) => sum + r.attempts, 0),
     total_points: points.totalPoints(req.profile.id),
+    streak: achievements.streak(req.profile.id),
+    badges: achievements.badgeList(req.profile.id),
     readings,
   });
 });
 
-module.exports = { router, optionalProfile };
+module.exports = { router, optionalProfile, AVATARS };

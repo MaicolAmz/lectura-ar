@@ -201,6 +201,75 @@ async function generateQuestions(reading, { previous = [] } = {}) {
   }
 }
 
+/* ---------- "Order the story" events ---------- */
+
+const EVENTS_SYSTEM_PROMPT = `Eres un tutor de lectura para estudiantes de 12 a 15 años. Respondes siempre en español.
+Trabaja solo con el texto que se te entrega. Extrae entre 4 y 6 momentos clave del texto, en el MISMO ORDEN en que aparecen en él.
+Cada momento debe ser una frase corta (máximo 20 palabras), con tus propias palabras, comprensible por sí sola y apropiada para menores.
+No uses palabras que delaten el orden (primero, luego, después, al final, finalmente, entonces).
+Para cada momento indica en "paragraph" el número del párrafo (empezando en 1) donde ocurre.
+Responde solo con un objeto JSON con este formato exacto, sin texto adicional:
+{"events":[{"paragraph":1,"text":"..."}]}`;
+
+const EVENT_MIN = 4;
+const EVENT_MAX = 6;
+
+// The paragraph numbers are the safety net: a model that lists events out of order would mark
+// correct students wrong, so any step backwards rejects the whole list.
+function validateEvents(output, paragraphCount) {
+  const list = output && output.events;
+  if (!Array.isArray(list) || list.length < EVENT_MIN) return null;
+  const events = list.slice(0, EVENT_MAX);
+  let lastParagraph = 0;
+  for (const e of events) {
+    if (!e || !isTextOfLength(e.text, 10, 200)) return null;
+    if (!Number.isInteger(e.paragraph) || e.paragraph < 1 || e.paragraph > paragraphCount) return null;
+    if (e.paragraph < lastParagraph) return null;
+    lastParagraph = e.paragraph;
+  }
+  const texts = events.map((e) => e.text.trim());
+  if (new Set(texts.map(normalize)).size !== texts.length) return null;
+  return texts;
+}
+
+const paragraphsOf = (reading) => String(reading.text).split(/\n+/).map((p) => p.trim()).filter(Boolean);
+
+// Offline version: the first sentence of each paragraph, already in text order.
+function buildFallbackEvents(reading) {
+  const sentences = paragraphsOf(reading)
+    .map((p) => p.split(/(?<=[.!?…])\s+/)[0].trim())
+    .filter((s) => s.length >= 20);
+  const picked = sentences.length > EVENT_MAX ? sentences.filter((_, i) => i % Math.ceil(sentences.length / EVENT_MAX) === 0) : sentences;
+  const events = picked.slice(0, EVENT_MAX).map((s) => (s.length > 160 ? `${s.slice(0, s.lastIndexOf(' ', 157))}…` : s));
+  return { origin: 'fallback', events };
+}
+
+async function generateStoryEvents(reading) {
+  const paragraphs = paragraphsOf(reading);
+  try {
+    const content = await callGroq({
+      system: EVENTS_SYSTEM_PROMPT,
+      user: `Título: ${reading.title}\n\nTexto (párrafos numerados):\n${paragraphs.map((p, i) => `${i + 1}. ${p}`).join('\n')}`,
+      maxTokens: 900,
+      temperature: 0.4,
+      json: true,
+      deadline: Date.now() + AI_TIMEOUT_MS,
+    });
+    let output;
+    try {
+      output = JSON.parse(content);
+    } catch {
+      throw new AiError('invalid_json');
+    }
+    const events = validateEvents(output, paragraphs.length);
+    if (!events) throw new AiError('validation');
+    return { origin: 'ai', events };
+  } catch (err) {
+    logFallback('generateStoryEvents', err instanceof AiError ? err.message : 'error');
+    return buildFallbackEvents(reading);
+  }
+}
+
 /* ---------- Feedback ---------- */
 
 const FEEDBACK_SYSTEM_PROMPT = `Eres un tutor de lectura crítica para estudiantes de 12 a 15 años. Respondes SIEMPRE en español, aunque el estudiante escriba en otro idioma, con lenguaje claro, amable y apropiado para menores.
@@ -396,4 +465,4 @@ function choiceFeedback({ question, correct, attempt }) {
   return 'Todavía no. Relee el fragmento con calma y descarta las opciones que el texto contradice.';
 }
 
-module.exports = { generateQuestions, giveFeedback, choiceFeedback, AI_TIMEOUT_MS };
+module.exports = { generateQuestions, giveFeedback, choiceFeedback, generateStoryEvents, shuffle, AI_TIMEOUT_MS };

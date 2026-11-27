@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const ai = require('./ia');
 const points = require('./points');
+const achievements = require('./achievements');
 
 const app = express();
 
@@ -79,11 +80,13 @@ app.post('/api/profiles', createProfileLimiter);
 app.post('/api/profiles/guest', createGuestLimiter);
 app.post('/api/readings/:id/questions', aiLimiter);
 app.post('/api/questions/:id/feedback', aiLimiter);
+app.post('/api/readings/:id/games/order', aiLimiter);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 const { router: profilesRouter, optionalProfile } = require('./profiles');
 app.use('/api/profiles', profilesRouter);
+app.use('/api', require('./games'));
 
 const GRADES = [8, 9, 10];
 const MAX_ANSWER_LENGTH = 1500;
@@ -189,7 +192,7 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
       db.prepare(
         'INSERT INTO answers (profile_id, question_id, attempt, answer, feedback, origin) VALUES (?, ?, ?, ?, ?, ?)'
       ).run(req.profile.id, question.id, attemptNumber, text, result.feedback, result.origin);
-      result.points_earned = points.awardAnswer({
+      const earned = points.awardAnswer({
         profileId: req.profile.id,
         questionId: question.id,
         attempt: attemptNumber,
@@ -197,7 +200,7 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
         answer: text,
         correct: result.correct,
       });
-      result.total_points = points.totalPoints(req.profile.id);
+      Object.assign(result, achievements.reward(req.profile.id, earned));
     }
     res.json(result);
   } catch (err) {
@@ -232,8 +235,8 @@ app.post('/api/questions/:id/choice', optionalProfile, (req, res) => {
     db.prepare(
       'INSERT INTO answers (profile_id, question_id, attempt, answer, feedback, origin) VALUES (?, ?, ?, ?, ?, ?)'
     ).run(req.profile.id, question.id, attemptNumber, options[option], result.feedback, 'choice');
-    result.points_earned = points.awardChoice({ profileId: req.profile.id, questionId: question.id, attempt: attemptNumber, correct });
-    result.total_points = points.totalPoints(req.profile.id);
+    const earned = points.awardChoice({ profileId: req.profile.id, questionId: question.id, attempt: attemptNumber, correct });
+    Object.assign(result, achievements.reward(req.profile.id, earned));
   }
   res.json(result);
 });

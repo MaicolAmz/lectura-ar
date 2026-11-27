@@ -78,6 +78,17 @@ function setPoints(total) {
   if (Number.isInteger(total) && getSession().token) setSession({ ...getSession(), points: total });
 }
 
+// Points chip plus one chip per new badge, for any scoring response. Empty when nothing was won.
+function rewardChips(result, label = 'puntos') {
+  const earned = Number.isInteger(result.points_earned) ? result.points_earned : 0;
+  return [
+    earned > 0 && h('span', { class: 'points-chip' }, `+${earned} ${label}`),
+    ...(result.badges_earned || []).map((b) =>
+      h('span', { class: 'badge new' }, `${b.emoji} Nueva insignia: ${b.name} (+${b.points})`)
+    ),
+  ].filter(Boolean);
+}
+
 // Without a session, a guest is created before the first answer so its points are kept on the
 // server. The promise is shared so a double submit cannot create two guests, and a failure
 // just lets the answer go through anonymously.
@@ -499,17 +510,12 @@ function mountAssistant(panel, reading, token) {
 
     function showResult(result) {
       setPoints(result.total_points);
-      const earned = Number.isInteger(result.points_earned) ? result.points_earned : null;
+      const chips = rewardChips(result);
       // replaceChildren would print a literal "false", so falsy entries are filtered out.
       hint.replaceChildren(
         ...[
-          (result.correct || earned > 0) &&
-            h(
-              'div',
-              { class: 'reward' },
-              result.correct && h('span', { class: 'badge' }, '✓ ¡Respuesta acertada!'),
-              earned > 0 && h('span', { class: 'points-chip' }, `+${earned} puntos`)
-            ),
+          (result.correct || chips.length > 0) &&
+            h('div', { class: 'reward' }, result.correct && h('span', { class: 'badge' }, '✓ ¡Respuesta acertada!'), chips),
           h('span', { class: 'hint-label' }, me ? `PISTA PARA ${me.name.toUpperCase()}` : 'PISTA DEL ASISTENTE'),
           result.feedback,
           !me && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'Crea un perfil para guardar tus puntos con tu apodo y avatar.'),
@@ -584,9 +590,8 @@ function mountAssistant(panel, reading, token) {
         .then((result) => {
           if (!result || !isAlive()) return;
           setPoints(result.total_points);
-          if (result.points_earned > 0) {
-            bonus.replaceChildren(h('span', { class: 'points-chip' }, `+${result.points_earned} puntos por completar la lectura`));
-          }
+          const chips = rewardChips(result, 'puntos por completar la lectura');
+          if (chips.length) bonus.replaceChildren(h('div', { class: 'reward' }, chips));
         })
         .catch(() => {});
     }
@@ -665,7 +670,8 @@ async function readingView(id, token, autoStart = false) {
           ar && ar.panel
         ),
         panel
-      )
+      ),
+      gamesSection(reading)
     );
     if (autoStart) assistant.start();
     else assistant.intro();
@@ -676,6 +682,357 @@ async function readingView(id, token, autoStart = false) {
       back: { href: '#/', text: 'Volver al inicio' },
     }));
   }
+}
+
+/* ---------- Games ---------- */
+const GAMES = {
+  glossary: {
+    emoji: '🔤',
+    title: 'Parejas del glosario',
+    description: 'Une cada palabra con su significado.',
+    available: (reading) => reading.glossary.length >= 2,
+    mount: glossaryGame,
+  },
+  order: {
+    emoji: '🧩',
+    title: 'Ordena la historia',
+    description: 'Pon los momentos de la historia en el orden en que aparecen.',
+    available: () => true,
+    mount: orderGame,
+  },
+  hunt: {
+    emoji: '🔍',
+    title: 'Caza del objeto AR',
+    description: 'Descubre qué objeto falta en el fragmento y míralo en 3D.',
+    available: (reading) => reading.ar_scenes.length > 0,
+    mount: huntGame,
+  },
+};
+
+function gamesSection(reading) {
+  const games = Object.entries(GAMES).filter(([, g]) => g.available(reading));
+  return h(
+    'section',
+    { class: 'card games', 'aria-labelledby': 'games-title' },
+    h('h2', { id: 'games-title', style: 'margin-top:0' }, '🎮 Juegos de esta lectura'),
+    h(
+      'div',
+      { class: 'game-links' },
+      games.map(([key, g]) =>
+        h(
+          'a',
+          { class: 'game-link', href: `#/play/${reading.id}/${key}` },
+          h('span', { class: 'game-emoji', 'aria-hidden': 'true' }, g.emoji),
+          h('span', {}, h('strong', {}, g.title), h('small', {}, g.description))
+        )
+      )
+    )
+  );
+}
+
+// Shared by every game: success message, rewards and the guest note in one block.
+function gameResult(result, message) {
+  setPoints(result.total_points);
+  return h(
+    'div',
+    { class: 'hint' },
+    h('div', { class: 'reward' }, h('span', { class: 'badge' }, `✓ ${message}`), rewardChips(result)),
+    !student() && h('small', { class: 'note' }, 'Crea un perfil para guardar tus puntos con tu apodo y avatar.')
+  );
+}
+
+async function gameView(id, key, token) {
+  const game = GAMES[key];
+  show(game.title, 'library', loadingIndicator('Cargando juego…'));
+  let reading;
+  try {
+    reading = await api.reading(id);
+  } catch (err) {
+    if (token !== currentView) return;
+    show(game.title, 'library', h('h1', {}, game.title), apiErrorNotice(err, {
+      retry: () => gameView(id, key, token),
+      back: { href: `#/reading/${id}`, text: 'Volver a la lectura' },
+    }));
+    return;
+  }
+  if (token !== currentView) return;
+  if (!game.available(reading)) return notFoundView();
+
+  const board = h('section', { class: 'card game-board', 'aria-label': game.title });
+  const others = Object.entries(GAMES).filter(([k, g]) => k !== key && g.available(reading));
+  show(
+    `${game.title} · ${reading.title}`,
+    'library',
+    h('p', { class: 'breadcrumbs' }, link(`#/reading/${reading.id}`, `← Volver a «${reading.title}»`, '')),
+    h('h1', {}, `${game.emoji} ${game.title}`),
+    h('p', { class: 'lead' }, game.description),
+    board,
+    others.length > 0 &&
+      h(
+        'p',
+        { class: 'note' },
+        'Otros juegos: ',
+        others.flatMap(([k, g], i) => [i > 0 && ' · ', link(`#/play/${reading.id}/${k}`, `${g.emoji} ${g.title}`, '')])
+      )
+  );
+  game.mount(board, reading, () => token === currentView);
+}
+
+// Tap a word and a definition, in either order. Every pair is checked right here (the
+// definitions are already public); the server confirms the full set before paying.
+function glossaryGame(board, reading, isAlive) {
+  const shuffled = (items) => {
+    const copy = [...items];
+    for (let i = copy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copy[i], copy[j]] = [copy[j], copy[i]];
+    }
+    return copy;
+  };
+  const status = h('p', { class: 'note', role: 'status' }, 'Elige una palabra y luego su significado.');
+  const matches = {};
+  let selected = { word: null, definition: null };
+  let mistakes = 0;
+
+  const select = (side, button, entry) => {
+    if (selected[side]) selected[side].button.setAttribute('aria-pressed', 'false');
+    selected[side] = { button, entry };
+    button.setAttribute('aria-pressed', 'true');
+    if (selected.word && selected.definition) check();
+  };
+  const column = (side, label, text) =>
+    h(
+      'div',
+      { class: 'pair-column', role: 'group', 'aria-label': label },
+      shuffled(reading.glossary).map((entry) => {
+        const button = h('button', { type: 'button', class: 'pair-button', 'aria-pressed': 'false' }, text(entry));
+        button.addEventListener('click', () => select(side, button, entry));
+        return button;
+      })
+    );
+
+  async function check() {
+    const { word, definition } = selected;
+    selected = { word: null, definition: null };
+    word.button.setAttribute('aria-pressed', 'false');
+    definition.button.setAttribute('aria-pressed', 'false');
+    if (word.entry.id !== definition.entry.id) {
+      mistakes += 1;
+      status.textContent = `«${word.entry.word}» no significa eso. Prueba con otra definición.`;
+      return;
+    }
+    matches[word.entry.id] = definition.entry.id;
+    for (const b of [word.button, definition.button]) {
+      b.disabled = true;
+      b.classList.add('matched');
+    }
+    const left = reading.glossary.length - Object.keys(matches).length;
+    status.textContent = left > 0 ? `¡Bien! «${word.entry.word}» ya tiene pareja. Faltan ${left}.` : '¡Completaste todas las parejas!';
+    if (left === 0) await finish();
+  }
+
+  async function finish() {
+    status.textContent = 'Guardando…';
+    try {
+      await ensureGuest();
+      const result = await api.glossaryGame(reading.id, matches);
+      if (!isAlive()) return;
+      status.textContent = mistakes === 0 ? 'Sin ningún error. ¡Excelente!' : `Lo lograste con ${mistakes} ${mistakes === 1 ? 'error' : 'errores'}.`;
+      status.after(
+        gameResult(result, '¡Todas las parejas!'),
+        h('div', { class: 'actions' }, h('button', { type: 'button', class: 'button', onclick: () => glossaryGame(board, reading, isAlive) }, 'Jugar otra vez'))
+      );
+    } catch (err) {
+      if (!isAlive()) return;
+      status.replaceChildren(apiErrorNotice(err, { retry: finish }));
+    }
+  }
+
+  board.replaceChildren(
+    h('div', { class: 'pairs' }, column('word', 'Palabras', (e) => e.word), column('definition', 'Significados', (e) => e.definition)),
+    status
+  );
+}
+
+// Moves the existing <li> nodes (never re-creates them) so the pressed button keeps focus.
+function moveNode(list, node, before) {
+  if (typeof list.moveBefore === 'function') list.moveBefore(node, before);
+  else list.insertBefore(node, before);
+}
+
+function orderGame(board, reading, isAlive) {
+  let attempt = 1;
+
+  async function load() {
+    board.replaceChildren(loadingIndicator('Preparando los momentos de la historia…'));
+    let round;
+    try {
+      round = await api.orderGame(reading.id);
+    } catch (err) {
+      if (!isAlive()) return;
+      board.replaceChildren(apiErrorNotice(err, { retry: load }));
+      return;
+    }
+    if (!isAlive()) return;
+    attempt = 1;
+    render(round);
+  }
+
+  function render(round) {
+    const status = h('p', { class: 'visually-hidden', role: 'status' });
+    const feedback = h('div', { 'aria-live': 'polite' });
+    const list = h('ol', { class: 'order-list' });
+    const items = round.events.map((event) => {
+      const short = event.text.length > 40 ? `${event.text.slice(0, 40)}…` : event.text;
+      const up = h('button', { type: 'button', class: 'order-move', 'aria-label': `Subir: ${short}` }, '↑');
+      const down = h('button', { type: 'button', class: 'order-move', 'aria-label': `Bajar: ${short}` }, '↓');
+      const li = h('li', { class: 'order-item' }, h('span', { class: 'order-mark', 'aria-hidden': 'true' }), h('span', { class: 'order-text' }, event.text), h('span', { class: 'order-buttons' }, up, down));
+      li.dataset.id = String(event.id);
+      const move = (direction, button) => {
+        const target = direction < 0 ? li.previousElementSibling : li.nextElementSibling;
+        if (!target) return;
+        moveNode(list, li, direction < 0 ? target : target.nextElementSibling);
+        button.focus();
+        clearMarks();
+        const position = [...list.children].indexOf(li) + 1;
+        status.textContent = `«${short}» ahora está en la posición ${position} de ${list.children.length}.`;
+      };
+      up.addEventListener('click', () => move(-1, up));
+      down.addEventListener('click', () => move(1, down));
+      return li;
+    });
+    list.append(...items);
+
+    const clearMarks = () => {
+      for (const li of list.children) {
+        li.classList.remove('right', 'wrong');
+        li.querySelector('.order-mark').textContent = '';
+      }
+    };
+
+    const submit = h('button', { type: 'button', class: 'button' }, 'Comprobar orden');
+    submit.addEventListener('click', async () => {
+      submit.disabled = true;
+      const order = [...list.children].map((li) => Number(li.dataset.id));
+      try {
+        await ensureGuest();
+        const result = await api.checkOrder(round.id, order, attempt);
+        if (!isAlive()) return;
+        attempt += 1;
+        [...list.children].forEach((li, i) => {
+          const ok = result.positions[i];
+          li.classList.add(ok ? 'right' : 'wrong');
+          li.querySelector('.order-mark').textContent = ok ? '✓' : '✗';
+        });
+        if (result.correct) {
+          list.querySelectorAll('button').forEach((b) => (b.disabled = true));
+          feedback.replaceChildren(
+            gameResult(result, '¡Orden correcto!'),
+            h('div', { class: 'actions' }, h('button', { type: 'button', class: 'button', onclick: load }, 'Jugar con otros momentos'))
+          );
+          submit.remove();
+        } else {
+          const right = result.positions.filter(Boolean).length;
+          feedback.replaceChildren(h('p', { class: 'notice' }, `${right} de ${order.length} están en su lugar (✓). Mueve los marcados con ✗ y vuelve a comprobar.`));
+          submit.disabled = false;
+        }
+      } catch (err) {
+        if (!isAlive()) return;
+        feedback.replaceChildren(apiErrorNotice(err));
+        submit.disabled = false;
+      }
+    });
+
+    board.replaceChildren(
+      ...[
+        round.origin === 'fallback' && h('p', { class: 'note', style: 'margin:0' }, 'La ayuda inteligente no está disponible: usamos frases del propio texto.'),
+        h('p', { style: 'margin:0' }, 'Usa las flechas para ordenar los momentos, del primero al último.'),
+        list,
+        status,
+        h('div', { class: 'actions', style: 'margin:0' }, submit),
+        feedback,
+      ].filter(Boolean)
+    );
+  }
+
+  load();
+}
+
+function huntGame(board, reading, isAlive) {
+  let attempt = 1;
+
+  async function load() {
+    board.replaceChildren(loadingIndicator('Escondiendo el objeto…'));
+    let round;
+    try {
+      round = await api.huntGame(reading.id);
+    } catch (err) {
+      if (!isAlive()) return;
+      board.replaceChildren(apiErrorNotice(err, { retry: load }));
+      return;
+    }
+    if (!isAlive()) return;
+
+    const feedback = h('div', { 'aria-live': 'polite' });
+    const scenePanel = h('div', { class: 'ar-panel' });
+    const buttons = round.options.map((key) => {
+      const avatar = AVATARS[key] || { emoji: '❓', name: key };
+      const button = h(
+        'button',
+        { type: 'button', class: 'hunt-option' },
+        h('span', { class: 'hunt-emoji', 'aria-hidden': 'true' }, avatar.emoji),
+        h('span', {}, avatar.name)
+      );
+      button.addEventListener('click', () => choose(key, button, avatar.name));
+      return button;
+    });
+
+    async function choose(key, button, name) {
+      buttons.forEach((b) => (b.disabled = true));
+      try {
+        await ensureGuest();
+        const result = await api.checkHunt(reading.id, key, attempt);
+        if (!isAlive()) return;
+        attempt += 1;
+        if (!result.correct) {
+          button.classList.add('wrong');
+          buttons.forEach((b) => (b.disabled = b.classList.contains('wrong')));
+          feedback.replaceChildren(h('p', { class: 'notice' }, `${name} no encaja con el fragmento. Vuelve a leerlo y prueba otra vez.`));
+          return;
+        }
+        button.classList.add('right');
+        feedback.replaceChildren(gameResult(result, `¡Era ${name.toLowerCase()}!`));
+        showScene();
+      } catch (err) {
+        if (!isAlive()) return;
+        buttons.forEach((b) => (b.disabled = b.classList.contains('wrong')));
+        feedback.replaceChildren(apiErrorNotice(err));
+      }
+    }
+
+    async function showScene() {
+      scenePanel.replaceChildren(loadingIndicator('Preparando el objeto en 3D…'));
+      try {
+        await loadModelViewer();
+        if (!isAlive()) return;
+        scenePanel.replaceChildren(...reading.ar_scenes.map(arScene));
+      } catch {
+        scenePanel.replaceChildren(
+          h('div', { class: 'notice', role: 'alert' }, h('p', {}, 'No pudimos cargar el modelo 3D (¿sin internet?).'), h('button', { type: 'button', class: 'button', onclick: showScene }, 'Reintentar'))
+        );
+      }
+    }
+
+    board.replaceChildren(
+      h('p', { class: 'ai-bubble' }, round.fragment),
+      h('p', { style: 'margin:0', id: 'hunt-question' }, h('strong', {}, '¿Qué objeto falta en el fragmento?')),
+      h('div', { class: 'hunt-options', role: 'group', 'aria-labelledby': 'hunt-question' }, buttons),
+      feedback,
+      scenePanel
+    );
+  }
+
+  load();
 }
 
 /* ---------- Progress (HU-08) ---------- */
@@ -704,10 +1061,13 @@ async function progressView(token) {
         { class: 'stats' },
         [
           [summary.total_points ?? 0, 'puntos ganados'],
+          summary.streak && [`🔥 ${summary.streak.current}`, `${summary.streak.current === 1 ? 'día seguido' : 'días seguidos'} (récord: ${summary.streak.best})`],
           [summary.completed_readings, 'lecturas completadas'],
           [summary.readings.reduce((sum, r) => sum + r.questions_answered, 0), 'preguntas trabajadas'],
           [summary.total_attempts, 'respuestas enviadas'],
-        ].map(([n, label]) => h('div', { class: 'stat' }, h('strong', {}, String(n)), h('span', {}, label)))
+        ]
+          .filter(Boolean)
+          .map(([n, label]) => h('div', { class: 'stat' }, h('strong', {}, String(n)), h('span', {}, label)))
       ),
     h(
       'div',
@@ -740,6 +1100,27 @@ async function progressView(token) {
           { class: 'card dark-card', 'aria-label': 'Retomar lectura' },
           h('div', {}, h('small', {}, 'Sigue donde te quedaste'), h('h2', {}, last.title)),
           link(`#/reading/${last.id}`, 'Continuar →', 'button yellow')
+        )
+    ),
+    summary &&
+      summary.badges &&
+      h(
+        'section',
+        { class: 'card', 'aria-labelledby': 'badges-title', style: 'margin-bottom:1.25rem' },
+        h('h2', { id: 'badges-title', style: 'margin-top:0' }, `Insignias (${summary.badges.filter((b) => b.earned).length} de ${summary.badges.length})`),
+        h(
+          'ul',
+          { class: 'badge-grid' },
+          summary.badges.map((b) =>
+            h(
+              'li',
+              { class: b.earned ? 'badge-card earned' : 'badge-card' },
+              h('span', { class: 'badge-emoji', 'aria-hidden': 'true' }, b.earned ? b.emoji : '🔒'),
+              h('strong', {}, b.name),
+              h('small', {}, `${b.description} +${b.points} puntos`),
+              h('span', { class: 'visually-hidden' }, b.earned ? 'Conseguida' : 'Pendiente')
+            )
+          )
         )
     ),
     h(
@@ -925,6 +1306,7 @@ function route() {
   if (name === 'grade' && isValidId) return gradeView(number, token);
   if (name === 'reading' && isValidId) return readingView(number, token);
   if (name === 'practice' && isValidId) return readingView(number, token, true);
+  if (name === 'play' && isValidId && GAMES[parts[2]]) return gameView(number, parts[2], token);
   if (name === 'progress') return progressView(token);
   if (name === 'profile') return profileView();
   return notFoundView();

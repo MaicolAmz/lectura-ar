@@ -57,6 +57,14 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ option, attempt }),
     }),
+  glossaryGame: (readingId, matches) =>
+    request(`/api/readings/${encodeURIComponent(readingId)}/games/glossary`, { method: 'POST', body: JSON.stringify({ matches }) }),
+  orderGame: (readingId) => request(`/api/readings/${encodeURIComponent(readingId)}/games/order`, { method: 'POST' }),
+  checkOrder: (roundId, order, attempt) =>
+    request(`/api/games/order/${encodeURIComponent(roundId)}`, { method: 'POST', body: JSON.stringify({ order, attempt }) }),
+  huntGame: (readingId) => request(`/api/readings/${encodeURIComponent(readingId)}/games/hunt`),
+  checkHunt: (readingId, option, attempt) =>
+    request(`/api/readings/${encodeURIComponent(readingId)}/games/hunt`, { method: 'POST', body: JSON.stringify({ option, attempt }) }),
   createGuest: () => request('/api/profiles/guest', { method: 'POST' }),
   createProfile: (data) => request('/api/profiles', { method: 'POST', body: JSON.stringify(data) }),
   me: () => request('/api/profiles/me'),

@@ -29,7 +29,7 @@ const readings = [
       ['astucia', 'Habilidad para conseguir algo con inteligencia y disimulo, a veces engañando a otro.'],
       ['escalinatas', 'Escaleras amplias y majestuosas, generalmente de piedra, en la entrada de un edificio.'],
     ],
-    scene: { name: 'La piedra que falta', model_url: '/modelos/stone.glb', description: 'Un muro de piedra al que le falta un bloque; la piedra escondida está a un lado. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'La piedra que falta', hunt: { paragraph: 2, word: 'piedra' }, model_url: '/modelos/stone.glb', description: 'Un muro de piedra al que le falta un bloque; la piedra escondida está a un lado. Modelo ilustrativo.', scale: 1.0 },
   },
   {
     grade: 8,
@@ -49,7 +49,7 @@ const readings = [
       ['graznido', 'Voz característica del cuervo y de otras aves.'],
       ['elogia', 'Del verbo elogiar: decir cosas buenas de alguien.'],
     ],
-    scene: { name: 'El zorro del cuento', model_url: '/modelos/fox.glb', description: 'Un zorro listo para engañar con palabras. Modelo «Fox»: PixelMannen (CC0), tomkranis y @AsoboStudio/@scurest (CC BY 4.0); escala reducida.', scale: 1.0 },
+    scene: { name: 'El zorro del cuento', hunt: { paragraph: 1, word: 'zorro' }, model_url: '/modelos/fox.glb', description: 'Un zorro listo para engañar con palabras. Modelo «Fox»: PixelMannen (CC0), tomkranis y @AsoboStudio/@scurest (CC BY 4.0); escala reducida.', scale: 1.0 },
   },
   {
     grade: 8,
@@ -68,7 +68,7 @@ const readings = [
       ['cumbre', 'Parte más alta de una montaña.'],
       ['siembras', 'Épocas y trabajos de sembrar la tierra para que crezcan las plantas.'],
     ],
-    scene: { name: 'Los volcanes de Imbabura', model_url: '/modelos/volcano.glb', description: 'Dos montañas vecinas, la mayor con la cima nevada. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'Los volcanes de Imbabura', hunt: { paragraph: 0, word: 'montañas' }, model_url: '/modelos/volcano.glb', description: 'Dos montañas vecinas, la mayor con la cima nevada. Modelo ilustrativo.', scale: 1.0 },
   },
 
   /* ---------------- 9.º ---------------- */
@@ -78,7 +78,7 @@ const readings = [
     author: 'Leyenda tradicional de Guayaquil',
     source: 'Leyenda de tradición oral (dominio público). Versión original redactada por LecturaAR.',
     paragraphs: [
-      'Hace siglos, el cacique Guayas gobernaba las tierras junto a un gran río. A su lado estaba Quilca, su esposa, a quien todos respetaban por su sabiduría y por su manera de dar buenos consejos.',
+      'Hace siglos, el cacique Guayas gobernaba las tierras junto a un gran río lleno de peces. A su lado estaba Quilca, su esposa, a quien todos respetaban por su sabiduría y por su manera de dar buenos consejos.',
       'Cuando llegaron los conquistadores españoles buscando oro, Guayas se negó a entregar su territorio y resistió durante mucho tiempo. Los invasores eran más numerosos y estaban mejor armados.',
       'Según la leyenda, al ver que la derrota era inevitable, Guayas escondió los tesoros de su pueblo en un lugar que nadie reveló jamás, y prefirió la muerte antes que rendirse.',
       'Dicen que de la unión de ambos nombres, Guayas y Quilca, nació el nombre de Guayaquil. Desde entonces, el río recuerda a quienes defendieron su tierra.',
@@ -89,7 +89,7 @@ const readings = [
       ['inevitable', 'Que no se puede evitar; que sucederá de todos modos.'],
       ['rendirse', 'Dejar de luchar y aceptar la derrota.'],
     ],
-    scene: { name: 'Un pez del río Guayas', model_url: '/modelos/fish.glb', description: 'Un pez de río, símbolo del gran río que da nombre a Guayaquil. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'Un pez del río Guayas', hunt: { paragraph: 0, word: 'peces' }, model_url: '/modelos/fish.glb', description: 'Un pez de río, símbolo del gran río que da nombre a Guayaquil. Modelo ilustrativo.', scale: 1.0 },
   },
   {
     grade: 9,
@@ -109,7 +109,7 @@ const readings = [
       ['cununo', 'Tambor alargado que se toca en la música tradicional afroecuatoriana.'],
       ['marimba', 'Instrumento de teclas de madera que se golpean con baquetas, típico de la costa del Pacífico.'],
     ],
-    scene: { name: 'Árbol de la selva', model_url: '/modelos/tree.glb', description: 'Un árbol grande de la selva esmeraldeña. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'Árbol de la selva', hunt: { paragraph: 1, word: 'árboles' }, model_url: '/modelos/tree.glb', description: 'Un árbol grande de la selva esmeraldeña. Modelo ilustrativo.', scale: 1.0 },
   },
   {
     grade: 9,
@@ -129,7 +129,7 @@ const readings = [
       ['agrietada', 'Con grietas, es decir, con aberturas largas y estrechas.'],
       ['vertiente', 'Agua que brota de la tierra o entre las rocas; manantial.'],
     ],
-    scene: { name: 'Un ave de los Andes', model_url: '/modelos/bird.glb', description: 'Un ave de alas abiertas sobre las montañas. Modelo ilustrativo: no es un cóndor ni un colibrí exactos.', scale: 1.0 },
+    scene: { name: 'Un ave de los Andes', hunt: { paragraph: 0, word: 'cóndor' }, model_url: '/modelos/bird.glb', description: 'Un ave de alas abiertas sobre las montañas. Modelo ilustrativo: no es un cóndor ni un colibrí exactos.', scale: 1.0 },
   },
 
   /* ---------------- 10.º ---------------- */
@@ -151,7 +151,7 @@ const readings = [
       ['marea', 'Subida y bajada periódica del nivel del mar.'],
       ['palafito', 'Casa construida sobre pilares de madera, sobre el agua o cerca de ella.'],
     ],
-    scene: { name: 'El manglar', model_url: '/modelos/mangrove.glb', description: 'Un árbol de manglar con raíces arqueadas sobre el agua. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'El manglar', hunt: { paragraph: 0, word: 'manglares' }, model_url: '/modelos/mangrove.glb', description: 'Un árbol de manglar con raíces arqueadas sobre el agua. Modelo ilustrativo.', scale: 1.0 },
   },
   {
     grade: 10,
@@ -170,7 +170,7 @@ const readings = [
       ['manto', 'Prenda amplia que cubre la cabeza y el cuerpo.'],
       ['prudencia', 'Cuidado y buen juicio para evitar riesgos innecesarios.'],
     ],
-    scene: { name: 'Un farol de la vieja Quito', model_url: '/modelos/lantern.glb', description: 'Un farol de calle, como los que alumbraban las noches coloniales. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'Un farol de la vieja Quito', hunt: { paragraph: 0, word: 'faroles' }, model_url: '/modelos/lantern.glb', description: 'Un farol de calle, como los que alumbraban las noches coloniales. Modelo ilustrativo.', scale: 1.0 },
   },
   {
     grade: 10,
@@ -192,7 +192,7 @@ const readings = [
       ['remolino', 'Movimiento giratorio y violento del agua.'],
       ['tramo', 'Parte de un recorrido o de un río.'],
     ],
-    scene: { name: 'La canoa del abuelo', model_url: '/modelos/canoe.glb', description: 'Una canoa de madera con su remo, lista para salir al río. Modelo ilustrativo.', scale: 1.0 },
+    scene: { name: 'La canoa del abuelo', hunt: { paragraph: 1, word: 'canoa' }, model_url: '/modelos/canoe.glb', description: 'Una canoa de madera con su remo, lista para salir al río. Modelo ilustrativo.', scale: 1.0 },
   },
 ];
 
@@ -200,6 +200,8 @@ const readings = [
 
 const countWords = (text) => text.split(/\s+/).filter(Boolean).length;
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+// Same Unicode-aware boundaries as the frontend, which highlights exact words only.
+const wordPattern = (word, flags = 'iu') => new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegex(word)}(?![\\p{L}\\p{N}])`, flags);
 
 function validate(list) {
   const perGrade = { 8: 0, 9: 0, 10: 0 };
@@ -212,11 +214,14 @@ function validate(list) {
     if (!reading.source || !reading.author) throw new Error(`«${reading.title}»: falta autor o fuente`);
     if (reading.glossary.length < 3 || reading.glossary.length > 5) throw new Error(`«${reading.title}»: el glosario debe tener 3-5 palabras`);
     for (const [word] of reading.glossary) {
-      // Same Unicode-aware boundaries as the frontend, which highlights exact words only.
-      const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegex(word)}(?![\\p{L}\\p{N}])`, 'iu');
-      if (!re.test(text)) throw new Error(`«${reading.title}»: la palabra «${word}» no aparece en el texto`);
+      if (!wordPattern(word).test(text)) throw new Error(`«${reading.title}»: la palabra «${word}» no aparece en el texto`);
     }
     if (!fs.existsSync(path.join(PUBLIC_DIR, reading.scene.model_url))) throw new Error(`«${reading.title}»: falta el modelo ${reading.scene.model_url}`);
+    const { hunt } = reading.scene;
+    const huntParagraph = hunt && reading.paragraphs[hunt.paragraph];
+    if (!huntParagraph || !wordPattern(hunt.word).test(huntParagraph)) {
+      throw new Error(`«${reading.title}»: la pista de la caza AR no aparece en su párrafo`);
+    }
   }
   for (const [grade, count] of Object.entries(perGrade)) {
     if (count !== 3) throw new Error(`El curso ${grade}.º tiene ${count} lecturas (deben ser 3)`);
@@ -234,7 +239,9 @@ function seedReadings() {
 
     const insertReading = db.prepare('INSERT INTO readings (grade, title, author, source, duration_min, text) VALUES (?, ?, ?, ?, ?, ?)');
     const insertWord = db.prepare('INSERT INTO glossary (reading_id, word, definition) VALUES (?, ?, ?)');
-    const insertScene = db.prepare('INSERT INTO ar_scenes (reading_id, name, model_url, description, scale) VALUES (?, ?, ?, ?, ?)');
+    const insertScene = db.prepare(
+      'INSERT INTO ar_scenes (reading_id, name, model_url, description, scale, hunt_paragraph, hunt_word) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
 
     for (const reading of readings) {
       const text = reading.paragraphs.join('\n');
@@ -242,15 +249,15 @@ function seedReadings() {
       const duration = Math.ceil(countWords(text) / 110) + 2;
       const id = insertReading.run(reading.grade, reading.title, reading.author, reading.source, duration, text).lastInsertRowid;
       for (const [word, definition] of reading.glossary) insertWord.run(id, word, definition);
-      const { name, model_url, description, scale } = reading.scene;
-      insertScene.run(id, name, model_url, description, scale);
+      const { name, model_url, description, scale, hunt } = reading.scene;
+      insertScene.run(id, name, model_url, description, scale, hunt.paragraph, hunt.word);
     }
   });
   load();
   return readings.length;
 }
 
-module.exports = { seedReadings, readings };
+module.exports = { seedReadings, readings, wordPattern };
 
 if (require.main === module) {
   console.log(`Seed completado: ${seedReadings()} lecturas.`);
