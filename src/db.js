@@ -15,5 +15,7 @@ db.exec(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8'));
 const questionColumns = db.prepare('PRAGMA table_info(questions)').all().map((c) => c.name);
 if (!questionColumns.includes('options')) db.exec('ALTER TABLE questions ADD COLUMN options TEXT');
 if (!questionColumns.includes('correct_option')) db.exec('ALTER TABLE questions ADD COLUMN correct_option INTEGER');
+const profileColumns = db.prepare('PRAGMA table_info(profiles)').all().map((c) => c.name);
+if (!profileColumns.includes('is_guest')) db.exec('ALTER TABLE profiles ADD COLUMN is_guest INTEGER NOT NULL DEFAULT 0');
 
 module.exports = db;

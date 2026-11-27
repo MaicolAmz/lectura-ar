@@ -39,8 +39,13 @@ function h(tag, attrs = {}, ...children) {
 }
 
 // The student behind the current profile, or null when the app is used without one.
-function student() {
+// Guest sessions (created to keep points before signing up) count as "no profile".
+const realProfile = () => {
   const { profile } = getSession();
+  return profile && !profile.is_guest ? profile : null;
+};
+function student() {
+  const profile = realProfile();
   if (!profile) return null;
   const avatar = AVATARS[profile.avatar];
   return { name: profile.nickname, emoji: avatar ? avatar.emoji : '🙂', grade: profile.grade };
@@ -59,7 +64,7 @@ function markNav(section) {
   });
   // "Biblioteca" goes to the last grade the student was in, then their profile's grade (default 8.º).
   const last = getLast();
-  const { profile } = getSession();
+  const profile = realProfile();
   const grade = (last && last.grade) || (profile && profile.grade) || 8;
   document.getElementById('nav-library').setAttribute('href', `#/grade/${grade}`);
 }
@@ -73,17 +78,38 @@ function setPoints(total) {
   if (Number.isInteger(total) && getSession().token) setSession({ ...getSession(), points: total });
 }
 
+// Without a session, a guest is created before the first answer so its points are kept on the
+// server. The promise is shared so a double submit cannot create two guests, and a failure
+// just lets the answer go through anonymously.
+let guestRequest = null;
+function ensureGuest() {
+  if (getSession().token) return Promise.resolve();
+  guestRequest ||= api
+    .createGuest()
+    .then(({ token, profile }) => {
+      if (!getSession().token) setSession({ token, profile, points: 0 });
+    })
+    .catch(() => {})
+    .finally(() => {
+      guestRequest = null;
+    });
+  return guestRequest;
+}
+
 function renderNavProfile() {
-  const { profile } = getSession();
+  const profile = realProfile();
   const el = document.getElementById('nav-profile');
+  const points = sessionPoints();
   if (profile) {
     const avatar = AVATARS[profile.avatar];
-    const points = sessionPoints();
     el.replaceChildren(
       `${avatar ? avatar.emoji : '🙂'} ${profile.nickname} `,
       h('span', { class: 'points-chip', 'aria-hidden': 'true' }, `⭐ ${points}`)
     );
     el.setAttribute('aria-label', `Mi perfil: ${profile.nickname}, ${points} puntos`);
+  } else if (getSession().token) {
+    el.replaceChildren('Crear perfil ', h('span', { class: 'points-chip', 'aria-hidden': 'true' }, `⭐ ${points}`));
+    el.setAttribute('aria-label', `Crear perfil, tienes ${points} puntos sin guardar en un perfil`);
   } else {
     el.textContent = 'Crear perfil';
     el.removeAttribute('aria-label');
@@ -486,7 +512,7 @@ function mountAssistant(panel, reading, token) {
             ),
           h('span', { class: 'hint-label' }, me ? `PISTA PARA ${me.name.toUpperCase()}` : 'PISTA DEL ASISTENTE'),
           result.feedback,
-          !me && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'Crea un perfil para ganar puntos con tus respuestas.'),
+          !me && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'Crea un perfil para guardar tus puntos con tu apodo y avatar.'),
           result.origin === 'fallback' && h('small', { class: 'note', style: 'display:block;margin-top:.5rem' }, 'La ayuda inteligente no está disponible ahora mismo, así que esta es una pista general.'),
         ].filter(Boolean)
       );
@@ -508,6 +534,7 @@ function mountAssistant(panel, reading, token) {
       errorArea.replaceChildren();
       hint.replaceChildren(loadingIndicator(choosing ? 'Revisando tu elección…' : me ? `Pensando una pista para ${me.name}…` : 'Pensando una pista…'));
       try {
+        await ensureGuest();
         const result = choosing
           ? await api.sendChoice(question.id, Number(picked.value), choiceAttempt)
           : await api.sendFeedback(question.id, answer, attempt);
@@ -658,7 +685,7 @@ async function progressView(token) {
   const [results, summary] = await Promise.all([
     Promise.all(GRADES.map((grade) => api.readings(grade).then((readings) => ({ grade, readings }), (err) => ({ grade, err })))),
     // Server-side totals are a bonus: the page still works without them.
-    me ? api.progress().catch(() => null) : null,
+    getSession().token ? api.progress().catch(() => null) : null,
   ]);
   if (token !== currentView) return;
   if (summary) setPoints(summary.total_points);
@@ -805,19 +832,24 @@ function profileForm({ profile, submitLabel, onSubmit }) {
 }
 
 function profileView() {
-  const { profile } = getSession();
+  const profile = realProfile();
   if (!profile) {
+    const guestPoints = getSession().token ? sessionPoints() : 0;
     show(
       'Crear perfil', 'profile',
       h('h1', {}, 'Crea tu perfil'),
       h('p', { class: 'lead' }, 'Elige un apodo y un avatar. No necesitas correo ni contraseña: tu perfil queda guardado en este dispositivo.'),
+      guestPoints > 0 && h('p', { class: 'reward' }, h('span', { class: 'points-chip' }, `⭐ ${guestPoints} puntos`), ' Los puntos que ya ganaste pasarán a tu nuevo perfil.'),
       h('div', { class: 'card' }, profileForm({
         submitLabel: 'Crear mi perfil',
         onSubmit: async (data) => {
           const { token, profile: created } = await api.createProfile(data);
-          setSession({ token, profile: created });
+          // The request carries the guest token (if any), so the server converts that guest
+          // and its points stay; syncProfile below refreshes the total.
+          setSession({ token, profile: created, points: guestPoints });
           // Completions made before the profile existed are uploaded so they are not lost.
           await Promise.allSettled(completedIds().map((id) => api.completeReading(id)));
+          await syncProfile();
           location.hash = '#/';
         },
       }))

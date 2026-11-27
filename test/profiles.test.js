@@ -20,7 +20,10 @@ describe('Perfiles sin contraseña', () => {
   it('POST /api/profiles crea el perfil y devuelve un token', async () => {
     const res = await create();
     assert.equal(res.status, 201);
-    assert.deepEqual({ ...res.body.profile, id: undefined, created_at: undefined }, { ...valid, id: undefined, created_at: undefined });
+    assert.deepEqual(
+      { ...res.body.profile, id: undefined, created_at: undefined },
+      { ...valid, id: undefined, created_at: undefined, is_guest: false }
+    );
     assert.match(res.body.token, /^[0-9a-f]{64}$/);
     assert.equal(res.body.profile.token_hash, undefined);
   });
@@ -162,6 +165,56 @@ describe('Progreso por perfil', () => {
   });
 });
 
+describe('Puntos de invitado', () => {
+  const guest = async () => (await request(app).post('/api/profiles/guest')).body;
+  const answerAsGuest = async (token) => {
+    const question = (await request(app).post('/api/readings/1/questions')).body.questions[0];
+    return request(app)
+      .post(`/api/questions/${question.id}/feedback`)
+      .set(auth(token))
+      .send({ answer: 'Creo que el protagonista actuó con astucia para salvarse.' });
+  };
+
+  it('POST /guest crea un perfil invitado con token', async () => {
+    const res = await request(app).post('/api/profiles/guest');
+    assert.equal(res.status, 201);
+    assert.equal(res.body.profile.is_guest, true);
+    assert.match(res.body.token, /^[0-9a-f]{64}$/);
+  });
+
+  it('el invitado gana puntos y los ve en su progreso', async () => {
+    const { token } = await guest();
+    const res = await answerAsGuest(token);
+    assert.equal(res.status, 200);
+    assert.ok(res.body.points_earned > 0);
+    const progress = await request(app).get('/api/profiles/me/progress').set(auth(token));
+    assert.equal(progress.body.total_points, res.body.points_earned);
+  });
+
+  it('crear perfil desde un invitado lo convierte y conserva los puntos', async () => {
+    const { token, profile: guestProfile } = await guest();
+    const earned = (await answerAsGuest(token)).body.total_points;
+
+    const res = await request(app).post('/api/profiles').set(auth(token)).send(valid);
+    assert.equal(res.status, 201);
+    assert.equal(res.body.profile.id, guestProfile.id);
+    assert.equal(res.body.profile.is_guest, false);
+    assert.equal(res.body.profile.nickname, valid.nickname);
+
+    const progress = await request(app).get('/api/profiles/me/progress').set(auth(res.body.token));
+    assert.equal(progress.body.total_points, earned);
+  });
+
+  it('con un perfil real, POST /api/profiles crea uno nuevo en vez de sobrescribirlo', async () => {
+    const first = (await create()).body;
+    const res = await request(app).post('/api/profiles').set(auth(first.token)).send({ ...valid, nickname: 'Otro' });
+    assert.equal(res.status, 201);
+    assert.notEqual(res.body.profile.id, first.profile.id);
+    const me = await request(app).get('/api/profiles/me').set(auth(first.token));
+    assert.equal(me.body.nickname, valid.nickname);
+  });
+});
+
 describe('La IA conoce el apodo del perfil', () => {
   const { mock } = require('node:test');
   const LONG_ANSWER = 'Creo que Cantuña fue astuto y engañó al diablo con la piedra.';
@@ -194,6 +247,11 @@ describe('La IA conoce el apodo del perfil', () => {
 
   it('sin perfil, el prompt no incluye apodo', async () => {
     assert.doesNotMatch(await promptFor(null), /Apodo del estudiante/);
+  });
+
+  it('un invitado no manda su apodo provisional a la IA', async () => {
+    const { token } = (await request(app).post('/api/profiles/guest')).body;
+    assert.doesNotMatch(await promptFor(token), /Apodo del estudiante/);
   });
 
   it('el apodo se limpia antes de entrar al prompt', async () => {

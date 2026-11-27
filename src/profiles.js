@@ -17,7 +17,11 @@ const publicProfile = (row) => ({
   avatar: row.avatar,
   grade: row.grade,
   created_at: row.created_at,
+  is_guest: Boolean(row.is_guest),
 });
+
+// Placeholder data for guests; never shown to the student, the UI treats guests as "no profile".
+const GUEST = { nickname: 'Invitado', avatar: 'fox', grade: 8 };
 
 // Returns a cleaned object, or { error }. With `partial`, absent fields are skipped (PATCH).
 function validate(body, { partial }) {
@@ -68,9 +72,32 @@ const router = express.Router();
 
 router.get('/avatars', (req, res) => res.json(AVATARS));
 
+router.post('/guest', (req, res) => {
+  const token = crypto.randomBytes(32).toString('hex');
+  const info = db
+    .prepare('INSERT INTO profiles (token_hash, nickname, avatar, grade, is_guest) VALUES (?, ?, ?, ?, 1)')
+    .run(hashToken(token), GUEST.nickname, GUEST.avatar, GUEST.grade);
+  const row = db.prepare('SELECT * FROM profiles WHERE id = ?').get(info.lastInsertRowid);
+  res.status(201).json({ profile: publicProfile(row), token });
+});
+
 router.post('/', (req, res) => {
   const { value, error } = validate(req.body, { partial: false });
   if (error) return res.status(400).json({ error });
+
+  // Signing up from a guest session converts that guest, so the points it earned stay.
+  const current = findProfile(req);
+  if (current && current.is_guest) {
+    db.prepare('UPDATE profiles SET nickname = ?, avatar = ?, grade = ?, is_guest = 0 WHERE id = ?').run(
+      value.nickname,
+      value.avatar,
+      value.grade,
+      current.id
+    );
+    const row = db.prepare('SELECT * FROM profiles WHERE id = ?').get(current.id);
+    const token = /^Bearer (.+)$/.exec(req.get('authorization'))[1].trim();
+    return res.status(201).json({ profile: publicProfile(row), token });
+  }
 
   // The token is shown once, here; the client keeps it (e.g. localStorage) as the "login".
   const token = crypto.randomBytes(32).toString('hex');

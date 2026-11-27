@@ -57,6 +57,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ option, attempt }),
     }),
+  createGuest: () => request('/api/profiles/guest', { method: 'POST' }),
   createProfile: (data) => request('/api/profiles', { method: 'POST', body: JSON.stringify(data) }),
   me: () => request('/api/profiles/me'),
   updateProfile: (data) => request('/api/profiles/me', { method: 'PATCH', body: JSON.stringify(data) }),

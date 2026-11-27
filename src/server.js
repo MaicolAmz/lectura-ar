@@ -65,8 +65,18 @@ const createProfileLimiter = rateLimit({
   legacyHeaders: false,
   message: { error: 'Demasiados perfiles creados desde esta red, intenta más tarde.' },
 });
+// Guests are created per device on the first answer; a classroom shares one IP, so the cap is higher.
+const createGuestLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 200,
+  skip: () => process.env.RATE_LIMIT_DISABLED === '1',
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas sesiones nuevas desde esta red, intenta más tarde.' },
+});
 app.use('/api', apiLimiter);
 app.post('/api/profiles', createProfileLimiter);
+app.post('/api/profiles/guest', createGuestLimiter);
 app.post('/api/readings/:id/questions', aiLimiter);
 app.post('/api/questions/:id/feedback', aiLimiter);
 
@@ -173,7 +183,7 @@ app.post('/api/questions/:id/feedback', optionalProfile, async (req, res) => {
       question,
       answer: text,
       attempt: attemptNumber,
-      student: req.profile && { nickname: req.profile.nickname },
+      student: req.profile && !req.profile.is_guest ? { nickname: req.profile.nickname } : null,
     });
     if (req.profile) {
       db.prepare(

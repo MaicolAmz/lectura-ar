@@ -52,7 +52,10 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar     TEXT NOT NULL,
   grade      INTEGER NOT NULL CHECK (grade IN (8, 9, 10)),
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  last_seen  TEXT NOT NULL DEFAULT (datetime('now'))
+  last_seen  TEXT NOT NULL DEFAULT (datetime('now')),
+  -- Guests are created silently on the first answer so points count before the student signs up;
+  -- creating a real profile converts the guest row in place, keeping its points.
+  is_guest   INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS answers (
