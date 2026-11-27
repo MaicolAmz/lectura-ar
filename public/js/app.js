@@ -714,16 +714,22 @@ function gamesSection(reading) {
   return h(
     'section',
     { class: 'card games', 'aria-labelledby': 'games-title' },
-    h('h2', { id: 'games-title', style: 'margin-top:0' }, '🎮 Juegos de esta lectura'),
+    h(
+      'div',
+      { class: 'games-header' },
+      h('h2', { id: 'games-title' }, h('span', { 'aria-hidden': 'true' }, '🎮 '), 'Juegos de esta lectura'),
+      h('p', { class: 'note' }, 'Practica con lo que leíste y gana puntos extra.')
+    ),
     h(
       'div',
       { class: 'game-links' },
       games.map(([key, g]) =>
         h(
           'a',
-          { class: 'game-link', href: `#/play/${reading.id}/${key}` },
+          { class: `game-link game-${key}`, href: `#/play/${reading.id}/${key}` },
           h('span', { class: 'game-emoji', 'aria-hidden': 'true' }, g.emoji),
-          h('span', {}, h('strong', {}, g.title), h('small', {}, g.description))
+          h('span', { class: 'game-text' }, h('strong', {}, g.title), h('small', {}, g.description)),
+          h('span', { class: 'game-cta', 'aria-hidden': 'true' }, 'Jugar →')
         )
       )
     )
@@ -1142,17 +1148,17 @@ async function progressView(token) {
 }
 
 /* ---------- Profile (one per device, no password) ---------- */
-function choiceGroup(legend, name, options, selected) {
+function choiceGroup(legend, name, options, selected, variant) {
   return h(
     'fieldset',
-    { class: 'choices' },
+    { class: variant ? `choices ${variant}` : 'choices' },
     h('legend', {}, legend),
     options.map(({ value, label }) =>
       h(
         'label',
         { class: 'choice' },
         h('input', { type: 'radio', name, value: String(value), checked: String(value) === String(selected) }),
-        h('span', {}, label)
+        h('span', { class: 'choice-label' }, label)
       )
     )
   );
@@ -1161,30 +1167,58 @@ function choiceGroup(legend, name, options, selected) {
 function profileForm({ profile, submitLabel, onSubmit }) {
   const nickname = h('input', {
     id: 'nickname', type: 'text', maxlength: String(NICKNAME_MAX), autocomplete: 'off',
-    value: profile ? profile.nickname : null,
+    placeholder: 'Ej.: Lector veloz', value: profile ? profile.nickname : null,
   });
   const avatars = choiceGroup(
     'Tu avatar', 'avatar',
-    Object.entries(AVATARS).map(([value, a]) => ({ value, label: `${a.emoji} ${a.name}` })),
-    profile ? profile.avatar : 'fox'
+    Object.entries(AVATARS).map(([value, a]) => ({
+      value,
+      label: [h('span', { class: 'avatar-emoji', 'aria-hidden': 'true' }, a.emoji), h('span', {}, a.name)],
+    })),
+    profile ? profile.avatar : 'fox',
+    'avatar-grid'
   );
   const grades = choiceGroup(
     'Tu curso', 'grade',
     GRADES.map((g) => ({ value: g, label: gradeName(g) })),
-    profile ? profile.grade : 8
+    profile ? profile.grade : 8,
+    'chip-row'
   );
   const status = h('div', { 'aria-live': 'polite' });
   const submit = h('button', { type: 'submit', class: 'button' }, submitLabel);
 
+  // Live preview so the student sees how their profile will look before saving.
+  const previewEmoji = h('span', { class: 'preview-emoji', 'aria-hidden': 'true' });
+  const previewName = h('strong', {});
+  const previewGrade = h('small', {});
+  const preview = h(
+    'div',
+    { class: 'profile-preview', 'aria-hidden': 'true' },
+    previewEmoji,
+    h('div', {}, previewName, previewGrade)
+  );
+
   const form = h(
     'form',
     { novalidate: true, class: 'profile-form' },
+    preview,
     h('div', {}, h('label', { for: 'nickname' }, 'Tu apodo (no uses tu nombre completo)'), nickname),
     avatars,
     grades,
     status,
     h('div', { class: 'actions', style: 'margin:0' }, submit)
   );
+
+  const refreshPreview = () => {
+    const avatar = AVATARS[form.elements.avatar.value];
+    previewEmoji.textContent = avatar ? avatar.emoji : '🙂';
+    previewName.textContent = nickname.value.trim() || 'Tu apodo';
+    previewName.classList.toggle('placeholder', !nickname.value.trim());
+    previewGrade.textContent = gradeName(Number(form.elements.grade.value));
+  };
+  form.addEventListener('input', refreshPreview);
+  form.addEventListener('change', refreshPreview);
+  refreshPreview();
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
